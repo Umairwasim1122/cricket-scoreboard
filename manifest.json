@@ -1,0 +1,49 @@
+{
+  "name": "Cricket Scoreboard",
+  "short_name": "Cricket",
+  "description": "Live offline cricket scoreboard — admin control + stadium display. Works fully without internet.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0a0a1a",
+  "theme_color": "#00aaff",
+  "categories": ["sports", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Admin Panel",
+      "short_name": "Admin",
+      "description": "Open the scoring control panel",
+      "url": "/admin",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Score Display",
+      "short_name": "Display",
+      "description": "Open the public stadium scoreboard",
+      "url": "/display",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
