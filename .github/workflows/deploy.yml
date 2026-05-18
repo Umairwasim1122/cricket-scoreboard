@@ -22,8 +22,23 @@ jobs:
       - name: Build
         env:
           PORT: 5173
-          BASE_PATH: '/'
+          BASE_PATH: '/cricket-scoreboard/'
         run: npm run build
+
+      - name: Create 404 fallback
+        run: |
+          cp dist/public/index.html dist/public/404.html
+
+      - name: Generate static copies for routes
+        run: |
+          mkdir -p dist/public/display
+          cp dist/public/index.html dist/public/display/index.html
+          mkdir -p dist/public/display/break
+          cp dist/public/index.html dist/public/display/break/index.html
+          mkdir -p dist/public/display/target
+          cp dist/public/index.html dist/public/display/target/index.html
+          mkdir -p dist/public/display/result
+          cp dist/public/index.html dist/public/display/result/index.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
