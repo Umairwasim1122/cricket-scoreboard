@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#0a0a1a"/>
+  <!-- Cricket ball -->
+  <circle cx="256" cy="256" r="180" fill="#cc2222"/>
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#aa1a1a" stroke-width="4"/>
+  <!-- Seam lines -->
+  <path d="M256 76 C326 130 346 200 346 256 C346 312 326 382 256 436" stroke="white" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M256 76 C186 130 166 200 166 256 C166 312 186 382 256 436" stroke="white" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <!-- Stitch marks on right seam -->
+  <line x1="302" y1="156" x2="316" y2="148" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="316" y1="186" x2="330" y2="182" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="324" y1="220" x2="338" y2="220" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="324" y1="256" x2="338" y2="256" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="316" y1="290" x2="330" y2="294" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="302" y1="320" x2="316" y2="328" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <!-- Stitch marks on left seam -->
+  <line x1="210" y1="156" x2="196" y2="148" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="196" y1="186" x2="182" y2="182" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="188" y1="220" x2="174" y2="220" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="188" y1="256" x2="174" y2="256" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="196" y1="290" x2="182" y2="294" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="210" y1="320" x2="196" y2="328" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <!-- Score text accent -->
+  <text x="256" y="286" font-family="Arial Black, sans-serif" font-size="72" font-weight="900" fill="white" text-anchor="middle" letter-spacing="-2">6</text>
+</svg>
