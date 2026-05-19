@@ -1,6 +1,6 @@
 import { useCricketStore } from "@/store/cricketStore";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { RotateCcw, MonitorPlay, Flag, Play, ExternalLink, Tv2, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -9,13 +9,6 @@ const DISPLAY_ROUTES: Record<string, string> = {
   target: "display/target",
   result: "display/result",
   break: "display/break",
-};
-
-const DISPLAY_LABELS: Record<string, string> = {
-  score: "Score Screen",
-  target: "Target Screen",
-  result: "Result Screen",
-  break: "Break Screen",
 };
 
 function openDisplay(view: string) {
@@ -43,11 +36,14 @@ export default function Dashboard() {
   const [lastActionLabel, setLastActionLabel] = useState<string | null>(null);
   const [breakInput, setBreakInput] = useState(breakMessage);
 
+  const prevBallsRef   = useRef<number>(0);
+  const prevWicketsRef = useRef<number>(0);
+  const prevRunsRef    = useRef<number>(0);
+  const matchEndedRef  = useRef<boolean>(false);
+
   const match = matches.find((m) => m.id === activeMatchId);
 
-  const flashAction = useCallback((label: string) => {
-    setLastActionLabel(label);
-  }, []);
+  const flashAction = useCallback((label: string) => setLastActionLabel(label), []);
 
   const handleScoreRuns = useCallback((runs: number) => {
     scoreRuns(runs);
@@ -64,6 +60,126 @@ export default function Dashboard() {
     takeWicket();
     flashAction("WICKET!");
   }, [takeWicket, flashAction]);
+
+  // Reset guards whenever the active match changes
+  useEffect(() => {
+    matchEndedRef.current  = false;
+    prevBallsRef.current   = 0;
+    prevWicketsRef.current = 0;
+    prevRunsRef.current    = 0;
+  }, [activeMatchId]);
+
+  // ── Core auto-detection effect ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!match || match.status !== "live") return;
+    if (matchEndedRef.current) return;
+
+    const innings    = match.innings[match.currentInnings];
+    const validBalls = innings.balls.filter(b => b.extra !== "wide" && b.extra !== "noBall");
+    const totalValid = validBalls.length;
+    const thisOver   = totalValid % 6;
+
+    const ballsChanged   = totalValid          !== prevBallsRef.current;
+    const wicketsChanged = innings.wickets     !== prevWicketsRef.current;
+    const runsChanged    = innings.totalRuns   !== prevRunsRef.current;
+    const anythingNew    = ballsChanged || wicketsChanged || runsChanged;
+
+    const finishMatch = (winner: string, result: string) => {
+      matchEndedRef.current = true;
+      endMatch(winner, result);
+      setPublicView("result");
+    };
+
+    // ── 1st innings ──────────────────────────────────────────────────────────
+    if (match.currentInnings === 0) {
+      // Auto end-over
+      if (totalValid > 0 && ballsChanged && thisOver === 0) {
+        prevBallsRef.current = totalValid;
+        endOver();
+        flashAction("Over Complete — Auto Ended");
+        return;
+      }
+      prevBallsRef.current = totalValid;
+
+      // All out → innings break
+      if (innings.wickets >= 10 && wicketsChanged) {
+        prevWicketsRef.current = innings.wickets;
+        setPublicView("break");
+        updateMatch({ ...match, status: "innings_break" });
+        flashAction("All Out — Innings Ended");
+        return;
+      }
+      prevWicketsRef.current = innings.wickets;
+      prevRunsRef.current    = innings.totalRuns;
+      return;
+    }
+
+    // ── 2nd innings ──────────────────────────────────────────────────────────
+    if (!anythingNew) return;
+
+    const inn1          = match.innings[0];
+    const inn2          = match.innings[1];
+    const target        = inn1.totalRuns + 1;
+    const runsScored    = inn2.totalRuns;
+    const wicketsFallen = inn2.wickets;
+    const wicketsLeft   = 10 - wicketsFallen;
+
+    const ballsBowled    = inn2.overs * 6 + (validBalls.length % 6);
+    const totalBalls     = match.totalOvers * 6;
+    const ballsRemaining = Math.max(0, totalBalls - ballsBowled);
+    const runsNeeded     = target - runsScored;
+
+    // Commit new values immediately so we don't double-fire
+    prevBallsRef.current   = totalValid;
+    prevWicketsRef.current = wicketsFallen;
+    prevRunsRef.current    = runsScored;
+
+    // 1. Target chased — batting team wins
+    if (runsScored >= target) {
+      const spare = ballsRemaining > 0 ? ` & ${ballsRemaining} ball${ballsRemaining !== 1 ? "s" : ""} to spare` : "";
+      finishMatch(
+        inn2.battingTeam,
+        `${inn2.battingTeam} won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? "s" : ""}${spare}`
+      );
+      flashAction(`🏆 ${inn2.battingTeam} WIN!`);
+      return;
+    }
+
+    // 2. Scores level + overs exhausted or all out → Tie
+    if (runsScored === inn1.totalRuns && (ballsRemaining === 0 || wicketsFallen >= 10)) {
+      finishMatch("Tie", "Match Tied — Scores Level");
+      flashAction("🤝 SCORES LEVEL — TIE!");
+      return;
+    }
+
+    // 3. All out in 2nd innings (didn't reach target or tie above)
+    if (wicketsFallen >= 10) {
+      const margin = inn1.totalRuns - runsScored;
+      finishMatch(
+        inn1.battingTeam,
+        `${inn1.battingTeam} won by ${margin} run${margin !== 1 ? "s" : ""}`
+      );
+      flashAction(`🏆 ${inn1.battingTeam} WIN!`);
+      return;
+    }
+
+    // 4. Overs exhausted — chase failed (runs still needed but no balls left)
+    if (ballsRemaining === 0 && runsNeeded > 0) {
+      const margin = inn1.totalRuns - runsScored;
+      finishMatch(
+        inn1.battingTeam,
+        `${inn1.battingTeam} won by ${margin} run${margin !== 1 ? "s" : ""}`
+      );
+      flashAction(`🏆 ${inn1.battingTeam} WIN!`);
+      return;
+    }
+
+    // 5. Auto end-over (6 valid balls, match still ongoing)
+    if (totalValid > 0 && ballsChanged && thisOver === 0) {
+      endOver();
+      flashAction("Over Complete — Auto Ended");
+    }
+  }, [match?.innings, match?.currentInnings, match?.status]);
 
   useEffect(() => {
     if (!lastActionLabel) return;
@@ -109,32 +225,32 @@ export default function Dashboard() {
     );
   }
 
-  const innings = match.innings[match.currentInnings];
-  const isLive = match.status === "live";
-
+  const innings   = match.innings[match.currentInnings];
+  const isLive    = match.status === "live";
   const validBalls = innings.balls.filter((b) => b.extra !== "wide" && b.extra !== "noBall");
-  const oversText = `${innings.overs}.${validBalls.length % 6}`;
+  const oversText  = `${innings.overs}.${validBalls.length % 6}`;
 
   const toggleStatus = () => {
-    const nextStatus = match.status === "live" ? "paused" : "live";
-    updateMatch({ ...match, status: nextStatus });
+    updateMatch({ ...match, status: match.status === "live" ? "paused" : "live" });
   };
 
   const handleEndMatch = () => {
     const inn1 = match.innings[0];
     const inn2 = match.innings[1];
-    let winner = "";
-    let result = "";
+    let winner = "", result = "";
     if (inn2.totalRuns > inn1.totalRuns) {
+      const wl = 10 - inn2.wickets;
       winner = inn2.battingTeam;
-      result = `${inn2.battingTeam} won by ${10 - inn2.wickets} wickets`;
+      result = `${inn2.battingTeam} won by ${wl} wicket${wl !== 1 ? "s" : ""}`;
     } else if (inn1.totalRuns > inn2.totalRuns) {
+      const m = inn1.totalRuns - inn2.totalRuns;
       winner = inn1.battingTeam;
-      result = `${inn1.battingTeam} won by ${inn1.totalRuns - inn2.totalRuns} runs`;
+      result = `${inn1.battingTeam} won by ${m} run${m !== 1 ? "s" : ""}`;
     } else {
       winner = "Tie";
-      result = "Match Tied";
+      result = "Match Tied — Scores Level";
     }
+    matchEndedRef.current = true;
     endMatch(winner, result);
   };
 
@@ -173,30 +289,20 @@ export default function Dashboard() {
               {match.innings[0].totalRuns + 1}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Need {match.innings[0].totalRuns + 1 - innings.totalRuns} runs to win
+              Need {Math.max(0, match.innings[0].totalRuns + 1 - innings.totalRuns)} runs to win
             </p>
           </div>
         )}
 
         <div className="grid grid-cols-1 gap-3">
           {match.currentInnings === 0 && (
-            <Button
-              variant="outline"
-              className="w-full bg-card hover:bg-secondary border-primary/50 text-primary"
-              onClick={() => {
-                setPublicView("break");
-                updateMatch({ ...match, status: "innings_break" });
-              }}
-            >
+            <Button variant="outline" className="w-full bg-card hover:bg-secondary border-primary/50 text-primary"
+              onClick={() => { setPublicView("break"); updateMatch({ ...match, status: "innings_break" }); }}>
               Take Innings Break
             </Button>
           )}
           {match.currentInnings === 0 && (
-            <Button
-              variant="default"
-              className="w-full bg-primary hover:bg-primary/90 text-white"
-              onClick={startNewInnings}
-            >
+            <Button variant="default" className="w-full bg-primary hover:bg-primary/90 text-white" onClick={startNewInnings}>
               <Play className="w-4 h-4 mr-2" /> Start 2nd Innings
             </Button>
           )}
@@ -208,7 +314,6 @@ export default function Dashboard() {
 
       {/* CENTER: Controls */}
       <div className="lg:col-span-6 space-y-4">
-        {/* Score Updated Banner */}
         <AnimatePresence>
           {lastActionLabel && (
             <motion.div
@@ -224,18 +329,12 @@ export default function Dashboard() {
                 <span className="text-success font-bold text-lg tracking-wide">{lastActionLabel}</span>
                 <span className="text-muted-foreground text-sm">— score updated</span>
               </div>
-              <Button
-                size="sm"
+              <Button size="sm"
                 className="bg-success hover:bg-success/90 text-success-foreground font-bold gap-2"
-                onClick={() => {
-                  setPublicView("score");
-                  openDisplay("score");
-                  setLastActionLabel(null);
-                }}
+                onClick={() => { setPublicView("score"); openDisplay("score"); setLastActionLabel(null); }}
                 data-testid="button-push-score-screen"
               >
-                <Tv2 className="w-4 h-4" />
-                Open Score Screen
+                <Tv2 className="w-4 h-4" /> Open Score Screen
               </Button>
             </motion.div>
           )}
@@ -243,74 +342,39 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[0, 1, 2, 3].map((runs) => (
-            <Button
-              key={runs}
-              disabled={!isLive}
-              onClick={() => handleScoreRuns(runs)}
+            <Button key={runs} disabled={!isLive} onClick={() => handleScoreRuns(runs)}
               className="h-20 text-3xl font-display bg-secondary hover:bg-secondary/80 text-foreground"
-              data-testid={`button-score-${runs}`}
-            >
+              data-testid={`button-score-${runs}`}>
               {runs}
             </Button>
           ))}
-          <Button
-            disabled={!isLive}
-            onClick={() => handleScoreRuns(4)}
+          <Button disabled={!isLive} onClick={() => handleScoreRuns(4)}
             className="h-20 text-3xl font-display bg-primary hover:bg-primary/90 text-primary-foreground"
-            data-testid="button-score-4"
-          >
-            4
-          </Button>
-          <Button
-            disabled={!isLive}
-            onClick={() => handleScoreRuns(6)}
+            data-testid="button-score-4">4</Button>
+          <Button disabled={!isLive} onClick={() => handleScoreRuns(6)}
             className="h-20 text-3xl font-display bg-accent hover:bg-accent/90 text-accent-foreground"
-            data-testid="button-score-6"
-          >
-            6
-          </Button>
+            data-testid="button-score-6">6</Button>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Button disabled={!isLive} onClick={() => handleExtra("wide", 0)} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-wide">WD</Button>
           <Button disabled={!isLive} onClick={() => handleExtra("noBall", 0)} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-noball">NB</Button>
-          <Button disabled={!isLive} onClick={() => {
-            const v = parseInt(window.prompt('Bye runs', '1') || '0', 10);
-            if (Number.isFinite(v) && v > 0) handleExtra('bye', v);
-          }} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-bye">B</Button>
-          <Button disabled={!isLive} onClick={() => {
-            const v = parseInt(window.prompt('Leg bye runs', '1') || '0', 10);
-            if (Number.isFinite(v) && v > 0) handleExtra('legBye', v);
-          }} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-legbye">LB</Button>
+          <Button disabled={!isLive} onClick={() => { const v = parseInt(window.prompt('Bye runs', '1') || '0', 10); if (Number.isFinite(v) && v > 0) handleExtra('bye', v); }} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-bye">B</Button>
+          <Button disabled={!isLive} onClick={() => { const v = parseInt(window.prompt('Leg bye runs', '1') || '0', 10); if (Number.isFinite(v) && v > 0) handleExtra('legBye', v); }} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-legbye">LB</Button>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Button
-            disabled={!isLive}
-            onClick={handleWicket}
+          <Button disabled={!isLive} onClick={handleWicket}
             className="h-24 text-4xl font-display bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-            data-testid="button-wicket"
-          >
-            WICKET
-          </Button>
+            data-testid="button-wicket">WICKET</Button>
           <div className="grid grid-rows-2 gap-4">
-            <Button
-              disabled={!isLive}
-              onClick={undoLastBall}
-              variant="outline"
-              className="h-full flex items-center justify-center gap-2 text-lg"
-              data-testid="button-undo"
-            >
+            <Button disabled={!isLive} onClick={undoLastBall} variant="outline"
+              className="h-full flex items-center justify-center gap-2 text-lg" data-testid="button-undo">
               <RotateCcw className="w-5 h-5" /> Undo Last (Z)
             </Button>
-            <Button
-              disabled={!isLive}
-              onClick={endOver}
+            <Button disabled={!isLive} onClick={endOver}
               className="h-full text-lg font-bold bg-success hover:bg-success/90 text-success-foreground"
-              data-testid="button-end-over"
-            >
-              End Over
-            </Button>
+              data-testid="button-end-over">End Over</Button>
           </div>
         </div>
       </div>
@@ -322,89 +386,48 @@ export default function Dashboard() {
             <MonitorPlay className="w-4 h-4" /> Display Output
           </h2>
           <div className="flex flex-col gap-2">
-            {/* Score Screen — always available */}
-            <button
-              data-testid="button-display-score"
+            <button data-testid="button-display-score"
               onClick={() => { setPublicView("score"); openDisplay("score"); }}
               className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border text-sm font-semibold transition-all
-                ${match.publicView === "score"
-                  ? "bg-primary border-primary text-primary-foreground"
-                  : "bg-secondary/30 border-border text-foreground hover:bg-secondary/60"}`}
-            >
-              <span>Score Screen</span>
-              <ExternalLink className="w-4 h-4 opacity-60" />
+                ${match.publicView === "score" ? "bg-primary border-primary text-primary-foreground" : "bg-secondary/30 border-border text-foreground hover:bg-secondary/60"}`}>
+              <span>Score Screen</span><ExternalLink className="w-4 h-4 opacity-60" />
             </button>
-
-            {/* Target Screen — only in 2nd innings */}
             {match.currentInnings === 1 && (
-              <button
-                data-testid="button-display-target"
+              <button data-testid="button-display-target"
                 onClick={() => { setPublicView("target"); openDisplay("target"); }}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border text-sm font-semibold transition-all
-                  ${match.publicView === "target"
-                    ? "bg-primary border-primary text-primary-foreground"
-                    : "bg-secondary/30 border-border text-foreground hover:bg-secondary/60"}`}
-              >
-                <span>Target Screen</span>
-                <ExternalLink className="w-4 h-4 opacity-60" />
+                  ${match.publicView === "target" ? "bg-primary border-primary text-primary-foreground" : "bg-secondary/30 border-border text-foreground hover:bg-secondary/60"}`}>
+                <span>Target Screen</span><ExternalLink className="w-4 h-4 opacity-60" />
               </button>
             )}
-
-            {/* Break Screen — only in 1st innings */}
             {match.currentInnings === 0 && (
-              <button
-                data-testid="button-display-break"
-                onClick={() => {
-                  setPublicView("break");
-                  updateMatch({ ...match, status: "innings_break" });
-                  openDisplay("break");
-                }}
+              <button data-testid="button-display-break"
+                onClick={() => { setPublicView("break"); updateMatch({ ...match, status: "innings_break" }); openDisplay("break"); }}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border text-sm font-semibold transition-all
-                  ${match.publicView === "break"
-                    ? "bg-warning/80 border-warning text-white"
-                    : "bg-secondary/30 border-border text-foreground hover:bg-secondary/60"}`}
-              >
-                <span>Break Screen</span>
-                <ExternalLink className="w-4 h-4 opacity-60" />
+                  ${match.publicView === "break" ? "bg-warning/80 border-warning text-white" : "bg-secondary/30 border-border text-foreground hover:bg-secondary/60"}`}>
+                <span>Break Screen</span><ExternalLink className="w-4 h-4 opacity-60" />
               </button>
             )}
-
- 
           </div>
           <p className="text-xs text-muted-foreground mt-3 text-center">Opens in new window</p>
         </div>
 
-        {/* Break Message — visible when break screen is active or in 1st innings */}
         {match.currentInnings === 0 && (
           <div className="bg-card border border-warning/30 rounded-xl p-6">
             <h2 className="text-xs font-bold text-warning uppercase tracking-wider mb-3 flex items-center gap-2">
               <Send className="w-4 h-4" /> Break Screen Message
             </h2>
-            <textarea
-              data-testid="input-break-message"
-              value={breakInput}
-              onChange={e => setBreakInput(e.target.value)}
-              placeholder="Type a message for the break screen..."
-              rows={3}
-              className="w-full bg-secondary/30 border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:border-warning/60 transition-colors"
-            />
+            <textarea data-testid="input-break-message" value={breakInput} onChange={e => setBreakInput(e.target.value)}
+              placeholder="Type a message for the break screen..." rows={3}
+              className="w-full bg-secondary/30 border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:border-warning/60 transition-colors" />
             <div className="flex gap-2 mt-2">
-              <Button
-                size="sm"
-                className="flex-1 bg-warning hover:bg-warning/90 text-warning-foreground font-bold gap-2"
-                onClick={() => setBreakMessage(breakInput)}
-                data-testid="button-send-break-message"
-              >
+              <Button size="sm" className="flex-1 bg-warning hover:bg-warning/90 text-warning-foreground font-bold gap-2"
+                onClick={() => setBreakMessage(breakInput)} data-testid="button-send-break-message">
                 <Send className="w-4 h-4" /> Send to Screen
               </Button>
               {breakMessage && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-muted-foreground"
-                  onClick={() => { setBreakInput(""); setBreakMessage(""); }}
-                  data-testid="button-clear-break-message"
-                >
+                <Button size="sm" variant="outline" className="text-muted-foreground"
+                  onClick={() => { setBreakInput(""); setBreakMessage(""); }} data-testid="button-clear-break-message">
                   Clear
                 </Button>
               )}
@@ -416,15 +439,12 @@ export default function Dashboard() {
           <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">This Over</h2>
           <div className="flex flex-wrap gap-2">
             {innings.balls.slice(-6).map((b, i) => (
-              <div
-                key={i}
-                className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold
-                  ${b.isWicket ? "bg-destructive text-destructive-foreground" :
-                    b.runs === 6 ? "bg-accent text-accent-foreground" :
-                    b.runs === 4 ? "bg-primary text-primary-foreground" :
-                    b.extra ? "bg-warning text-warning-foreground" :
-                    "bg-secondary text-secondary-foreground"}`}
-              >
+              <div key={i} className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold
+                ${b.isWicket ? "bg-destructive text-destructive-foreground" :
+                  b.runs === 6 ? "bg-accent text-accent-foreground" :
+                  b.runs === 4 ? "bg-primary text-primary-foreground" :
+                  b.extra ? "bg-warning text-warning-foreground" :
+                  "bg-secondary text-secondary-foreground"}`}>
                 {b.isWicket ? "W" : (b.extra ? `${b.runs}${b.extra[0].toUpperCase()}` : b.runs)}
               </div>
             ))}

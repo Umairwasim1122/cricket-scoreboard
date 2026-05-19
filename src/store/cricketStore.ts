@@ -19,6 +19,7 @@ interface CricketState {
   
   addTournament: (tournament: Tournament) => void;
   updateTournament: (tournament: Tournament) => void;
+  deleteTournament: (id: string) => void;
   addMatch: (match: Match) => void;
   setActiveMatchId: (id: string | null) => void;
   updateMatch: (match: Match) => void;
@@ -63,6 +64,11 @@ export const useCricketStore = create<CricketState>()(
       }),
       updateTournament: (tournament) => set(state => {
         const newTournaments = state.tournaments.map(t => t.id === tournament.id ? tournament : t);
+        broadcastService.broadcast({ tournaments: newTournaments, activeMatchId: state.activeMatchId });
+        return { tournaments: newTournaments };
+      }),
+      deleteTournament: (id) => set(state => {
+        const newTournaments = state.tournaments.filter(t => t.id !== id);
         broadcastService.broadcast({ tournaments: newTournaments, activeMatchId: state.activeMatchId });
         return { tournaments: newTournaments };
       }),

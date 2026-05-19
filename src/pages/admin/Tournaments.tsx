@@ -2,10 +2,10 @@ import { useCricketStore } from "@/store/cricketStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { Trophy } from "lucide-react";
+import { Trophy, Trash2 } from "lucide-react";
 
 export default function Tournaments() {
-  const { tournaments, addTournament, updateTournament } = useCricketStore();
+  const { tournaments, addTournament, updateTournament, deleteTournament } = useCricketStore();
   const [name, setName] = useState("");
   const [teamInput, setTeamInput] = useState("");
   const [teams, setTeams] = useState<string[]>([]);
@@ -13,6 +13,7 @@ export default function Tournaments() {
   const [editName, setEditName] = useState("");
   const [editTeams, setEditTeams] = useState<string[]>([]);
   const [editTeamInput, setEditTeamInput] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleAddTeam = () => {
     if (teamInput.trim() && !teams.includes(teamInput.trim())) {
@@ -35,6 +36,11 @@ export default function Tournaments() {
     }
   };
 
+  const handleDelete = (id: string) => {
+    deleteTournament(id);
+    setConfirmDeleteId(null);
+  };
+
   return (
     <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
@@ -47,12 +53,12 @@ export default function Tournaments() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1 bg-card border border-border p-6 rounded-xl space-y-4">
           <h2 className="text-xl font-bold">New Tournament</h2>
-          
+
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground font-medium">Tournament Name</label>
-            <Input 
-              value={name} 
-              onChange={(e) => setName(e.target.value)} 
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Summer Cup 2024"
               className="bg-background"
             />
@@ -61,8 +67,8 @@ export default function Tournaments() {
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground font-medium">Add Teams</label>
             <div className="flex gap-2">
-              <Input 
-                value={teamInput} 
+              <Input
+                value={teamInput}
                 onChange={(e) => setTeamInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddTeam()}
                 placeholder="Team Name"
@@ -70,7 +76,7 @@ export default function Tournaments() {
               />
               <Button onClick={handleAddTeam} variant="secondary">Add</Button>
             </div>
-            
+
             <div className="flex flex-wrap gap-2 mt-3">
               {teams.map(t => (
                 <span key={t} className="px-3 py-1 bg-secondary text-secondary-foreground rounded-md text-sm font-medium">
@@ -80,8 +86,8 @@ export default function Tournaments() {
             </div>
           </div>
 
-          <Button 
-            className="w-full mt-4" 
+          <Button
+            className="w-full mt-4"
             onClick={handleCreate}
             disabled={!name.trim() || teams.length < 2}
           >
@@ -96,7 +102,12 @@ export default function Tournaments() {
                 <>
                   <input className="mb-2 p-2 rounded border" value={editName} onChange={(e) => setEditName(e.target.value)} />
                   <div className="flex gap-2 mb-2">
-                    <input className="p-2 rounded border flex-1" value={editTeamInput} onChange={(e) => setEditTeamInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (editTeamInput.trim() && !editTeams.includes(editTeamInput.trim()) ? setEditTeams([...editTeams, editTeamInput.trim()]) : null, setEditTeamInput(''))} />
+                    <input
+                      className="p-2 rounded border flex-1"
+                      value={editTeamInput}
+                      onChange={(e) => setEditTeamInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (editTeamInput.trim() && !editTeams.includes(editTeamInput.trim()) ? setEditTeams([...editTeams, editTeamInput.trim()]) : null, setEditTeamInput(''))}
+                    />
                     <Button variant="secondary" onClick={() => { if (editTeamInput.trim() && !editTeams.includes(editTeamInput.trim())) { setEditTeams([...editTeams, editTeamInput.trim()]); setEditTeamInput(''); } }}>Add</Button>
                   </div>
                   <div className="flex flex-wrap gap-2 mb-4">
@@ -114,6 +125,20 @@ export default function Tournaments() {
                     }}>Save</Button>
                   </div>
                 </>
+              ) : confirmDeleteId === t.id ? (
+                // ── Confirm delete prompt ──
+                <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center">
+                  <Trash2 className="w-8 h-8 text-destructive" />
+                  <p className="text-sm font-medium">
+                    Delete <span className="text-primary font-bold">{t.name}</span>?
+                    <br />
+                    <span className="text-muted-foreground text-xs">This action cannot be undone.</span>
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+                    <Button variant="destructive" onClick={() => handleDelete(t.id)}>Delete</Button>
+                  </div>
+                </div>
               ) : (
                 <>
                   <h3 className="text-xl font-bold text-primary mb-1">{t.name}</h3>
@@ -129,7 +154,17 @@ export default function Tournaments() {
                     </div>
                   </div>
                   <div className="flex gap-2 mt-4">
-                    <Button variant="ghost" onClick={() => { setEditingId(t.id); setEditName(t.name); setEditTeams(t.teams); }}>Edit</Button>
+                    <Button variant="ghost" onClick={() => { setEditingId(t.id); setEditName(t.name); setEditTeams(t.teams); }}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 ml-auto"
+                      onClick={() => setConfirmDeleteId(t.id)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
+                    </Button>
                   </div>
                 </>
               )}
