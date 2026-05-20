@@ -59,7 +59,6 @@ export default function Matches() {
           <MonitorPlay className="w-8 h-8 text-primary" />
           <h1 className="text-3xl font-display font-bold">Matches</h1>
         </div>
-        <h1 className="text-3xl font-display font-bold">Matches</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

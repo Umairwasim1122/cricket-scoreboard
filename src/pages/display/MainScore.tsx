@@ -55,9 +55,9 @@ function TimerDisplay({ match }: { match: Match | undefined }) {
   const seconds = absTime % 60;
 
   return (
-    <div className={`absolute bottom-8 right-8 text-center ${timerColor} transition-colors duration-300`}>
-      <div className="text-sm text-muted-foreground uppercase tracking-widest font-bold mb-2">Innings Timer</div>
-      <div className="text-5xl font-bold tabular-nums">
+    <div className={`absolute bottom-4 sm:bottom-8 right-4 sm:right-8 text-center ${timerColor} transition-colors duration-300`}>
+      <div className="text-[0.6rem] sm:text-sm text-muted-foreground uppercase tracking-widest font-bold mb-1 sm:mb-2">Innings Timer</div>
+      <div className="text-2xl sm:text-4xl md:text-5xl font-bold tabular-nums">
         {isNegative ? "-" : ""}{minutes.toString().padStart(2, "0")}:{seconds.toString().padStart(2, "0")}
       </div>
     </div>
@@ -88,7 +88,7 @@ export default function MainScore() {
   if (!match) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-[#0a0a1a]">
-        <div className="text-4xl text-muted-foreground animate-pulse">Waiting for match data...</div>
+        <div className="text-xl sm:text-3xl md:text-4xl text-muted-foreground animate-pulse text-center px-4">Waiting for match data...</div>
       </div>
     );
   }
@@ -99,11 +99,11 @@ export default function MainScore() {
   const oversText = `${innings.overs}.${ballsThisOver}`;
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-8 bg-[#0a0a1a]">
-      <div className="absolute top-8 left-6 text-primary font-bold text-2xl sm:text-4xl tracking-widest uppercase opacity-80">
+    <div className="w-full h-full flex flex-col items-center justify-center p-3 sm:p-4 md:p-8 bg-[#0a0a1a]">
+      <div className="absolute top-2 sm:top-6 md:top-8 left-2 sm:left-4 md:left-6 text-primary font-bold text-xs sm:text-2xl md:text-4xl tracking-widest uppercase opacity-80 max-w-[40vw] truncate">
         {match.tournamentId ? useCricketStore.getState().tournaments.find(t => t.id === match.tournamentId)?.name ?? "CRICKET MATCH" : "CRICKET MATCH"}
       </div>
-      <div className="absolute top-8 right-6 text-muted-foreground font-bold text-xl sm:text-3xl">
+      <div className="absolute top-2 sm:top-6 md:top-8 right-2 sm:right-4 md:right-6 text-muted-foreground font-bold text-[0.6rem] sm:text-xl md:text-3xl max-w-[40vw] text-right truncate">
         {match.teamA} VS {match.teamB}
       </div>
 
@@ -112,17 +112,17 @@ export default function MainScore() {
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", duration: 0.4 }}
-        className="flex flex-col items-center justify-center"
+        className="flex flex-col items-center justify-center max-w-full px-2"
       >
-        <h2 className="text-4xl sm:text-6xl text-primary font-bold tracking-widest uppercase mb-4">
+        <h2 className="text-xl sm:text-4xl md:text-5xl lg:text-6xl text-primary font-bold tracking-widest uppercase mb-2 sm:mb-4 text-center">
           {innings.battingTeam}
         </h2>
-        <div className="text-[7rem] sm:text-[10rem] md:text-[14rem] lg:text-[18rem] xl:text-[20rem] font-bold leading-none tracking-tighter text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+        <div className="text-[4rem] sm:text-[7rem] md:text-[12rem] lg:text-[16rem] xl:text-[20rem] font-bold leading-none tracking-tighter text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
           {innings.totalRuns}
-          <span className="text-[4rem] sm:text-[6rem] md:text-[8rem] lg:text-[10rem] xl:text-[12rem] text-muted-foreground">/{innings.wickets}</span>
+          <span className="text-[2.5rem] sm:text-[4rem] md:text-[7rem] lg:text-[9rem] xl:text-[12rem] text-muted-foreground">/{innings.wickets}</span>
         </div>
-        <div className="mt-8 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-accent tracking-wider bg-black/40 px-6 sm:px-12 py-3 sm:py-4 rounded-3xl border border-accent/20 backdrop-blur-md">
-          {oversText} <span className="text-2xl sm:text-3xl md:text-4xl text-muted-foreground">/ {match.totalOvers} OVERS</span>
+        <div className="mt-4 sm:mt-6 md:mt-8 text-xl sm:text-3xl md:text-5xl lg:text-7xl font-bold text-accent tracking-wider bg-black/40 px-3 sm:px-8 md:px-12 py-2 sm:py-3 md:py-4 rounded-2xl sm:rounded-3xl border border-accent/20 backdrop-blur-md text-center">
+          {oversText} <span className="text-sm sm:text-xl md:text-3xl lg:text-4xl text-muted-foreground">/ {match.totalOvers} OVERS</span>
         </div>
       </motion.div>
       <TimerDisplay match={match} />

@@ -27,7 +27,7 @@ export default function TargetView() {
   if (!match || match.currentInnings === 0) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-[#0a0a1a]">
-        <div className="text-4xl text-muted-foreground">Target not available yet.</div>
+        <div className="text-xl sm:text-3xl md:text-4xl text-muted-foreground text-center px-4">Target not available yet.</div>
       </div>
     );
   }
@@ -59,40 +59,40 @@ export default function TargetView() {
       : `Won by ${innings1.totalRuns - innings2.totalRuns} runs`;
 
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-8 bg-[#0a0a1a] relative overflow-hidden">
+      <div className="w-full h-full flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 bg-[#0a0a1a] relative overflow-hidden">
         {/* Ambient glow */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-accent/10 blur-[120px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] rounded-full bg-accent/10 blur-[60px] sm:blur-[120px]" />
         </div>
 
         <motion.div
           initial={{ scale: 0.85, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className="text-center flex flex-col items-center z-10"
+          className="text-center flex flex-col items-center z-10 w-full max-w-full px-2"
         >
-          <Trophy className="w-24 h-24 sm:w-36 sm:h-36 text-accent mb-4 drop-shadow-[0_0_30px_rgba(255,215,0,0.6)]" />
+          <Trophy className="w-12 h-12 sm:w-24 sm:h-24 md:w-36 md:h-36 text-accent mb-2 sm:mb-4 drop-shadow-[0_0_30px_rgba(255,215,0,0.6)]" />
 
-          <h1 className="text-5xl sm:text-7xl md:text-8xl font-bold text-accent tracking-widest uppercase mb-3 drop-shadow-[0_0_20px_rgba(255,215,0,0.4)]">
+          <h1 className="text-2xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-accent tracking-widest uppercase mb-2 sm:mb-3 drop-shadow-[0_0_20px_rgba(255,215,0,0.4)] break-words">
             {winnerName}
           </h1>
 
-          <p className="text-2xl sm:text-4xl md:text-5xl font-bold text-success mb-10 tracking-wide">
+          <p className="text-lg sm:text-2xl md:text-4xl lg:text-5xl font-bold text-success mb-4 sm:mb-6 md:mb-10 tracking-wide">
             {marginText}
           </p>
 
           {/* Scorecard */}
-          <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-16 bg-white/5 border border-white/10 backdrop-blur-sm rounded-[2rem] px-8 py-6 w-full max-w-3xl">
-            <div className={`text-center flex-1 ${defendingTeam === winnerName ? "opacity-100" : "opacity-60"}`}>
-              <p className="text-xl sm:text-2xl text-muted-foreground font-semibold mb-2">{innings1.battingTeam}</p>
-              <p className="text-4xl sm:text-5xl font-bold text-white">{innings1.totalRuns}/{innings1.wickets}</p>
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6 md:gap-16 bg-white/5 border border-white/10 backdrop-blur-sm rounded-xl sm:rounded-[2rem] px-4 sm:px-6 md:px-8 py-4 sm:py-6 w-full max-w-xs sm:max-w-lg md:max-w-3xl">
+            <div className={`text-center flex-1 w-full ${defendingTeam === winnerName ? "opacity-100" : "opacity-60"}`}>
+              <p className="text-sm sm:text-xl md:text-2xl text-muted-foreground font-semibold mb-1 sm:mb-2">{innings1.battingTeam}</p>
+              <p className="text-2xl sm:text-4xl md:text-5xl font-bold text-white">{innings1.totalRuns}/{innings1.wickets}</p>
             </div>
 
-            <div className="text-2xl text-muted-foreground font-bold italic">VS</div>
+            <div className="text-lg sm:text-2xl text-muted-foreground font-bold italic">VS</div>
 
-            <div className={`text-center flex-1 ${chasingTeam === winnerName ? "opacity-100" : "opacity-60"}`}>
-              <p className="text-xl sm:text-2xl text-muted-foreground font-semibold mb-2">{innings2.battingTeam}</p>
-              <p className="text-4xl sm:text-5xl font-bold text-white">{innings2.totalRuns}/{innings2.wickets}</p>
+            <div className={`text-center flex-1 w-full ${chasingTeam === winnerName ? "opacity-100" : "opacity-60"}`}>
+              <p className="text-sm sm:text-xl md:text-2xl text-muted-foreground font-semibold mb-1 sm:mb-2">{innings2.battingTeam}</p>
+              <p className="text-2xl sm:text-4xl md:text-5xl font-bold text-white">{innings2.totalRuns}/{innings2.wickets}</p>
             </div>
           </div>
         </motion.div>
@@ -105,29 +105,29 @@ export default function TargetView() {
   const rrr = ballsRemaining > 0 ? ((runsNeeded / ballsRemaining) * 6).toFixed(2) : "—";
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-8 bg-[#0a0a1a]">
-      <div className="absolute top-8 left-6 text-primary font-bold text-2xl sm:text-4xl tracking-widest uppercase opacity-80">
+    <div className="w-full h-full flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 bg-[#0a0a1a]">
+      <div className="absolute top-2 sm:top-6 md:top-8 left-2 sm:left-4 md:left-6 text-primary font-bold text-xs sm:text-2xl md:text-4xl tracking-widest uppercase opacity-80 max-w-[80vw] sm:max-w-[50vw] truncate">
         {match.teamA} VS {match.teamB}
       </div>
 
       <motion.div
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="text-center"
+        className="text-center max-w-full px-2"
       >
-        <h2 className="text-4xl sm:text-6xl text-primary font-bold tracking-widest uppercase mb-6 sm:mb-8">
+        <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl text-primary font-bold tracking-widest uppercase mb-3 sm:mb-6 md:mb-8">
           TARGET: {target}
         </h2>
 
-        <div className="text-[5rem] sm:text-[6rem] md:text-[8rem] lg:text-[10rem] xl:text-[12rem] font-bold leading-tight tracking-tighter text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+        <div className="text-[2.5rem] sm:text-[4rem] md:text-[7rem] lg:text-[10rem] xl:text-[12rem] font-bold leading-tight tracking-tighter text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
           NEED <span className="text-accent">{runsNeeded}</span> RUNS
         </div>
 
-        <div className="text-[3.5rem] sm:text-[4.5rem] md:text-[6rem] lg:text-[7rem] font-bold text-muted-foreground mt-4">
+        <div className="text-[1.8rem] sm:text-[3rem] md:text-[5rem] lg:text-[7rem] font-bold text-muted-foreground mt-2 sm:mt-4">
           IN <span className="text-white">{ballsRemaining}</span> BALLS
         </div>
 
-        <div className="mt-6 sm:mt-8 text-3xl sm:text-4xl md:text-5xl font-bold text-primary/80">
+        <div className="mt-3 sm:mt-6 md:mt-8 text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-primary/80">
           RRR: {rrr}
         </div>
       </motion.div>

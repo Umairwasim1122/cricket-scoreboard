@@ -234,8 +234,18 @@ export default function Dashboard() {
   const validBalls = innings.balls.filter((b) => b.extra !== "wide" && b.extra !== "noBall");
   const oversText  = `${innings.overs}.${validBalls.length % 6}`;
 
+  // Configure extra modal options based on type
+  const extraModalConfig: Record<string, { title: string; runs: number[] }> = {
+    wide:   { title: "Wide",     runs: [1, 2, 3, 4] },
+    noBall: { title: "No Ball",  runs: [1, 2, 3, 4, 6] },
+    bye:    { title: "Bye",      runs: [0, 1, 2, 3, 4] },
+    legBye: { title: "Leg Bye",  runs: [0, 1, 2, 3, 4] },
+  };
+
   const toggleStatus = () => {
-    if (match.status === "live") {
+    if (match.status === "scheduled") {
+      updateMatch({ ...match, status: "live", timerStartedAt: new Date().toISOString() });
+    } else if (match.status === "live") {
       pauseMatch();
     } else if (match.status === "paused") {
       resumeMatch();
@@ -263,20 +273,20 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 md:gap-4 lg:gap-6 min-h-0 w-full max-w-full">
       {/* EXTRA RUNS MODAL */}
       {extraModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-xl p-6 max-w-sm w-full">
-            <h2 className="text-xl font-bold mb-4">
-              Select Runs for {extraModal === "bye" ? "Bye" : extraModal === "legBye" ? "Leg Bye" : ""}
+          <div className="bg-card border border-border rounded-lg md:rounded-xl p-4 md:p-6 max-w-sm w-full">
+            <h2 className="text-lg md:text-xl font-bold mb-3 md:mb-4">
+              Select Runs for {extraModalConfig[extraModal].title}
             </h2>
-            <div className="grid grid-cols-3 gap-3">
-              {[0, 1, 2, 3, 4, 6].map((runs) => (
+            <div className="grid grid-cols-3 gap-2 md:gap-3">
+              {extraModalConfig[extraModal].runs.map((runs) => (
                 <Button
                   key={runs}
                   onClick={() => handleExtra(extraModal, runs)}
-                  className={`h-16 text-2xl font-bold ${
+                  className={`h-12 md:h-16 text-xl md:text-2xl font-bold ${
                     runs === 6
                       ? "bg-accent hover:bg-accent/90 text-accent-foreground"
                       : runs === 4
@@ -290,7 +300,7 @@ export default function Dashboard() {
             </div>
             <Button
               variant="outline"
-              className="w-full mt-4"
+              className="w-full mt-3 md:mt-4"
               onClick={() => setExtraModal(null)}
             >
               Cancel
@@ -298,64 +308,65 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      
       {/* LEFT: Match Info */}
-      <div className="lg:col-span-3 space-y-6">
-        <div className="bg-card border border-border rounded-xl p-6">
+      <div className="col-span-1 md:col-span-2 lg:col-span-3 space-y-3 md:space-y-4 lg:space-y-6">
+        <div className="bg-card border border-border rounded-lg md:rounded-xl p-3 md:p-4 lg:p-6">
           <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Match Status</h2>
-          <div className="flex items-center justify-between mb-4">
-            <span className={`px-3 py-1 rounded-full text-xs font-bold ${isLive ? "bg-success/20 text-success" : "bg-warning/20 text-warning"}`}>
+          <div className="flex items-center justify-between mb-3 md:mb-4 gap-2">
+            <span className={`px-2 md:px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${isLive ? "bg-success/20 text-success" : match.status === "scheduled" ? "bg-blue-500/20 text-blue-500" : "bg-warning/20 text-warning"}`}>
               {match.status.toUpperCase()}
             </span>
-            <Button variant="outline" size="sm" onClick={toggleStatus}>
-              {isLive ? "Pause" : "Start"}
+            <Button variant="outline" size="sm" className="text-xs md:text-sm" onClick={toggleStatus}>
+              {match.status === "scheduled" ? "Start" : isLive ? "Pause" : "Resume"}
             </Button>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-2 md:space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground">{match.teamA} vs {match.teamB}</p>
-              <h3 className="text-xl font-bold text-primary">{innings.battingTeam} Batting</h3>
+              <p className="text-xs md:text-sm text-muted-foreground">{match.teamA} vs {match.teamB}</p>
+              <h3 className="text-lg md:text-xl font-bold text-primary">{innings.battingTeam} Batting</h3>
             </div>
-            <div className="pt-4 border-t border-border">
-              <div className="text-5xl font-display font-bold text-foreground">
-                {innings.totalRuns}<span className="text-muted-foreground text-3xl">/{innings.wickets}</span>
+            <div className="pt-2 md:pt-4 border-t border-border">
+              <div className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground">
+                {innings.totalRuns}<span className="text-muted-foreground text-xl md:text-2xl lg:text-3xl">/{innings.wickets}</span>
               </div>
-              <div className="text-lg text-muted-foreground mt-1">Overs: {oversText} / {match.totalOvers}</div>
+              <div className="text-sm md:text-base lg:text-lg text-muted-foreground mt-1">Overs: {oversText} / {match.totalOvers}</div>
             </div>
           </div>
         </div>
 
         {match.currentInnings === 1 && (
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="bg-card border border-border rounded-lg md:rounded-xl p-3 md:p-4 lg:p-6">
             <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Target</h2>
-            <div className="text-3xl font-display font-bold text-accent">
+            <div className="text-2xl md:text-3xl font-display font-bold text-accent">
               {match.innings[0].totalRuns + 1}
             </div>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs md:text-sm text-muted-foreground mt-1">
               Need {Math.max(0, match.innings[0].totalRuns + 1 - innings.totalRuns)} runs to win
             </p>
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 gap-2 md:gap-3">
           {match.currentInnings === 0 && (
-            <Button variant="outline" className="w-full bg-card hover:bg-secondary border-primary/50 text-primary"
+            <Button variant="outline" className="w-full bg-card hover:bg-secondary border-primary/50 text-primary text-sm md:text-base"
               onClick={() => { setPublicView("break"); updateMatch({ ...match, status: "innings_break" }); }}>
               Take Innings Break
             </Button>
           )}
           {match.currentInnings === 0 && (
-            <Button variant="default" className="w-full bg-primary hover:bg-primary/90 text-white" onClick={startNewInnings}>
-              <Play className="w-4 h-4 mr-2" /> Start 2nd Innings
+            <Button variant="default" className="w-full bg-primary hover:bg-primary/90 text-white text-sm md:text-base" onClick={startNewInnings}>
+              <Play className="w-3 h-3 md:w-4 md:h-4 mr-2" /> Start 2nd Innings
             </Button>
           )}
-          <Button variant="destructive" className="w-full" onClick={handleEndMatch}>
-            <Flag className="w-4 h-4 mr-2" /> End Match
+          <Button variant="destructive" className="w-full text-sm md:text-base" onClick={handleEndMatch}>
+            <Flag className="w-3 h-3 md:w-4 md:h-4 mr-2" /> End Match
           </Button>
         </div>
       </div>
 
       {/* CENTER: Controls */}
-      <div className="lg:col-span-6 space-y-4">
+      <div className="col-span-1 md:col-span-2 lg:col-span-6 space-y-2 md:space-y-3 lg:space-y-4">
         <AnimatePresence>
           {lastActionLabel && (
             <motion.div
@@ -364,111 +375,110 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.97 }}
               transition={{ duration: 0.2 }}
-              className="flex items-center justify-between bg-success/10 border border-success/40 rounded-xl px-5 py-3"
+              className="flex flex-col md:flex-row items-center justify-between gap-2 bg-success/10 border border-success/40 rounded-lg md:rounded-xl px-3 md:px-5 py-2 md:py-3"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 md:gap-3">
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                <span className="text-success font-bold text-lg tracking-wide">{lastActionLabel}</span>
-                <span className="text-muted-foreground text-sm">— score updated</span>
+                <span className="text-success font-bold text-base md:text-lg tracking-wide">{lastActionLabel}</span>
+                <span className="text-muted-foreground text-xs md:text-sm">— score updated</span>
               </div>
               <Button size="sm"
-                className="bg-success hover:bg-success/90 text-success-foreground font-bold gap-2"
+                className="bg-success hover:bg-success/90 text-success-foreground font-bold gap-2 w-full md:w-auto text-xs md:text-sm"
                 onClick={() => { setPublicView("score"); openDisplay("score"); setLastActionLabel(null); }}
                 data-testid="button-push-score-screen"
               >
-                <Tv2 className="w-4 h-4" /> Open Score Screen
+                <Tv2 className="w-3 h-3 md:w-4 md:h-4" /> Open Score Screen
               </Button>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 md:grid-cols-4 gap-1 md:gap-2 lg:gap-4">
           {[0, 1, 2, 3].map((runs) => (
             <Button key={runs} disabled={!isLive} onClick={() => handleScoreRuns(runs)}
-              className="h-20 text-3xl font-display bg-secondary hover:bg-secondary/80 text-foreground"
+              className="h-12 md:h-16 lg:h-20 text-xl md:text-2xl lg:text-3xl font-display bg-secondary hover:bg-secondary/80 text-foreground text-xs md:text-sm"
               data-testid={`button-score-${runs}`}>
               {runs}
             </Button>
           ))}
           <Button disabled={!isLive} onClick={() => handleScoreRuns(4)}
-            className="h-20 text-3xl font-display bg-primary hover:bg-primary/90 text-primary-foreground"
+            className="h-12 md:h-16 lg:h-20 text-xl md:text-2xl lg:text-3xl font-display bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm"
             data-testid="button-score-4">4</Button>
           <Button disabled={!isLive} onClick={() => handleScoreRuns(6)}
-            className="h-20 text-3xl font-display bg-accent hover:bg-accent/90 text-accent-foreground"
+            className="h-12 md:h-16 lg:h-20 text-xl md:text-2xl lg:text-3xl font-display bg-accent hover:bg-accent/90 text-accent-foreground text-xs md:text-sm"
             data-testid="button-score-6">6</Button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Button disabled={!isLive} onClick={() => handleExtra("wide", 0)} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-wide">WD</Button>
-          <Button disabled={!isLive} onClick={() => handleExtra("noBall", 0)} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-noball">NB</Button>
-          <Button disabled={!isLive} onClick={() => setExtraModal("bye")} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-bye">BYE</Button>
-          <Button disabled={!isLive} onClick={() => setExtraModal("legBye")} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-legbye">LB</Button>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-1 md:gap-2 lg:gap-4">
+          <Button disabled={!isLive} onClick={() => setExtraModal("wide")} variant="outline" className="h-10 md:h-12 lg:h-16 text-xs md:text-sm lg:text-lg font-bold" data-testid="button-extra-wide">WD</Button>
+          <Button disabled={!isLive} onClick={() => setExtraModal("noBall")} variant="outline" className="h-10 md:h-12 lg:h-16 text-xs md:text-sm lg:text-lg font-bold" data-testid="button-extra-noball">NB</Button>
+          <Button disabled={!isLive} onClick={() => setExtraModal("bye")} variant="outline" className="h-10 md:h-12 lg:h-16 text-xs md:text-sm lg:text-lg font-bold" data-testid="button-extra-bye">BYE</Button>
+          <Button disabled={!isLive} onClick={() => setExtraModal("legBye")} variant="outline" className="h-10 md:h-12 lg:h-16 text-xs md:text-sm lg:text-lg font-bold" data-testid="button-extra-legbye">LB</Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-1 md:gap-2 lg:gap-4">
           <Button disabled={!isLive} onClick={handleWicket}
-            className="h-24 text-4xl font-display bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            className="h-16 md:h-20 lg:h-24 text-2xl md:text-3xl lg:text-4xl font-display bg-destructive hover:bg-destructive/90 text-destructive-foreground text-sm md:text-base"
             data-testid="button-wicket">WICKET</Button>
-          <div className="grid grid-rows-2 gap-4">
+          <div className="grid grid-rows-2 gap-1 md:gap-2 lg:gap-4">
             <Button disabled={!isLive} onClick={undoLastBall} variant="outline"
-              className="h-full flex items-center justify-center gap-2 text-lg" data-testid="button-undo">
-              <RotateCcw className="w-5 h-5" /> Undo Last (Z)
+              className="h-full flex items-center justify-center gap-1 md:gap-2 text-xs md:text-sm" data-testid="button-undo">
+              <RotateCcw className="w-4 h-4 md:w-5 md:h-5" /> Undo
             </Button>
             <Button disabled={!isLive} onClick={endOver}
-              className="h-full text-lg font-bold bg-success hover:bg-success/90 text-success-foreground"
-              data-testid="button-end-over">End Over</Button>
+              className="h-full text-sm md:text-base font-bold bg-success hover:bg-success/90 text-success-foreground">End Over</Button>
           </div>
         </div>
       </div>
 
       {/* RIGHT: Display Control & Over History */}
-      <div className="lg:col-span-3 space-y-6">
-        <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+      <div className="col-span-1 md:col-span-2 lg:col-span-3 space-y-3 md:space-y-4 lg:space-y-6">
+        <div className="bg-card border border-border rounded-lg md:rounded-xl p-3 md:p-4 lg:p-6">
+          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 md:mb-4 flex items-center gap-2">
             <MonitorPlay className="w-4 h-4" /> Display Output
           </h2>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1 md:gap-2 lg:gap-2">
             <button data-testid="button-display-score"
               onClick={() => { setPublicView("score"); openDisplay("score"); }}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border text-sm font-semibold transition-all
+              className={`w-full flex items-center justify-between px-2 md:px-4 py-2 md:py-3 rounded-lg border text-xs md:text-sm font-semibold transition-all
                 ${match.publicView === "score" ? "bg-primary border-primary text-primary-foreground" : "bg-secondary/30 border-border text-foreground hover:bg-secondary/60"}`}>
-              <span>Score Screen</span><ExternalLink className="w-4 h-4 opacity-60" />
+              <span>Score Screen</span><ExternalLink className="w-3 h-3 md:w-4 md:h-4 opacity-60" />
             </button>
             {match.currentInnings === 1 && (
               <button data-testid="button-display-target"
                 onClick={() => { setPublicView("target"); openDisplay("target"); }}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border text-sm font-semibold transition-all
+                className={`w-full flex items-center justify-between px-2 md:px-4 py-2 md:py-3 rounded-lg border text-xs md:text-sm font-semibold transition-all
                   ${match.publicView === "target" ? "bg-primary border-primary text-primary-foreground" : "bg-secondary/30 border-border text-foreground hover:bg-secondary/60"}`}>
-                <span>Target Screen</span><ExternalLink className="w-4 h-4 opacity-60" />
+                <span>Target Screen</span><ExternalLink className="w-3 h-3 md:w-4 md:h-4 opacity-60" />
               </button>
             )}
             {match.currentInnings === 0 && (
               <button data-testid="button-display-break"
                 onClick={() => { setPublicView("break"); updateMatch({ ...match, status: "innings_break" }); openDisplay("break"); }}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border text-sm font-semibold transition-all
+                className={`w-full flex items-center justify-between px-2 md:px-4 py-2 md:py-3 rounded-lg border text-xs md:text-sm font-semibold transition-all
                   ${match.publicView === "break" ? "bg-warning/80 border-warning text-white" : "bg-secondary/30 border-border text-foreground hover:bg-secondary/60"}`}>
-                <span>Break Screen</span><ExternalLink className="w-4 h-4 opacity-60" />
+                <span>Break Screen</span><ExternalLink className="w-3 h-3 md:w-4 md:h-4 opacity-60" />
               </button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-3 text-center">Opens in new window</p>
+          <p className="text-xs text-muted-foreground mt-2 md:mt-3 text-center">Opens in new window</p>
         </div>
 
         {match.currentInnings === 0 && (
-          <div className="bg-card border border-warning/30 rounded-xl p-6">
-            <h2 className="text-xs font-bold text-warning uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Send className="w-4 h-4" /> Break Screen Message
+          <div className="bg-card border border-warning/30 rounded-lg md:rounded-xl p-3 md:p-4 lg:p-6">
+            <h2 className="text-xs font-bold text-warning uppercase tracking-wider mb-2 md:mb-3 flex items-center gap-2">
+              <Send className="w-3 h-3 md:w-4 md:h-4" /> Break Message
             </h2>
             <textarea data-testid="input-break-message" value={breakInput} onChange={e => setBreakInput(e.target.value)}
               placeholder="Type a message for the break screen..." rows={3}
-              className="w-full bg-secondary/30 border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:border-warning/60 transition-colors" />
-            <div className="flex gap-2 mt-2">
-              <Button size="sm" className="flex-1 bg-warning hover:bg-warning/90 text-warning-foreground font-bold gap-2"
+              className="w-full bg-secondary/30 border border-border rounded-lg px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:border-warning/60 transition-colors" />
+            <div className="flex gap-1 md:gap-2 mt-2 md:mt-2">
+              <Button size="sm" className="flex-1 bg-warning hover:bg-warning/90 text-warning-foreground font-bold gap-2 text-xs md:text-sm"
                 onClick={() => setBreakMessage(breakInput)} data-testid="button-send-break-message">
-                <Send className="w-4 h-4" /> Send to Screen
+                <Send className="w-3 h-3 md:w-4 md:h-4" /> Send
               </Button>
               {breakMessage && (
-                <Button size="sm" variant="outline" className="text-muted-foreground"
+                <Button size="sm" variant="outline" className="text-muted-foreground text-xs md:text-sm"
                   onClick={() => { setBreakInput(""); setBreakMessage(""); }} data-testid="button-clear-break-message">
                   Clear
                 </Button>
@@ -477,11 +487,11 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">This Over</h2>
-          <div className="flex flex-wrap gap-2">
+        <div className="bg-card border border-border rounded-lg md:rounded-xl p-3 md:p-4 lg:p-6">
+          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 md:mb-4">This Over</h2>
+          <div className="flex flex-wrap gap-1 md:gap-2">
             {innings.balls.slice(-6).map((b, i) => (
-              <div key={i} className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold
+              <div key={i} className={`w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center text-xs md:text-sm lg:text-lg font-bold
                 ${b.isWicket ? "bg-destructive text-destructive-foreground" :
                   b.runs === 6 ? "bg-accent text-accent-foreground" :
                   b.runs === 4 ? "bg-primary text-primary-foreground" :
@@ -490,7 +500,7 @@ export default function Dashboard() {
                 {b.isWicket ? "W" : (b.extra ? `${b.runs}${b.extra[0].toUpperCase()}` : b.runs)}
               </div>
             ))}
-            {innings.balls.length === 0 && <span className="text-muted-foreground text-sm">No balls bowled</span>}
+            {innings.balls.length === 0 && <span className="text-muted-foreground text-xs md:text-sm">No balls bowled</span>}
           </div>
         </div>
       </div>

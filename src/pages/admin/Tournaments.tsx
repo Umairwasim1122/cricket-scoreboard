@@ -2,7 +2,7 @@ import { useCricketStore } from "@/store/cricketStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { Trophy, Trash2 } from "lucide-react";
+import { Trophy, Trash2, X } from "lucide-react";
 
 export default function Tournaments() {
   const { tournaments, addTournament, updateTournament, deleteTournament } = useCricketStore();
@@ -100,20 +100,21 @@ export default function Tournaments() {
             <div key={t.id} className="bg-card border border-border p-6 rounded-xl flex flex-col">
               {editingId === t.id ? (
                 <>
-                  <input className="mb-2 p-2 rounded border" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                  <Input className="mb-2 bg-background" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Tournament name" />
                   <div className="flex gap-2 mb-2">
-                    <input
-                      className="p-2 rounded border flex-1"
+                    <Input
+                      className="flex-1 bg-background"
                       value={editTeamInput}
                       onChange={(e) => setEditTeamInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && (editTeamInput.trim() && !editTeams.includes(editTeamInput.trim()) ? setEditTeams([...editTeams, editTeamInput.trim()]) : null, setEditTeamInput(''))}
+                      placeholder="Team name"
                     />
                     <Button variant="secondary" onClick={() => { if (editTeamInput.trim() && !editTeams.includes(editTeamInput.trim())) { setEditTeams([...editTeams, editTeamInput.trim()]); setEditTeamInput(''); } }}>Add</Button>
                   </div>
                   <div className="flex flex-wrap gap-2 mb-4">
                     {editTeams.map(team => (
-                      <span key={team} className="px-3 py-1 bg-secondary text-secondary-foreground rounded-md text-sm font-medium">
-                        {team} <button onClick={() => setEditTeams(editTeams.filter(x => x !== team))} className="ml-2 text-xs">×</button>
+                      <span key={team} className="inline-flex items-center gap-1 px-3 py-1 bg-secondary text-secondary-foreground rounded-md text-sm font-medium">
+                        {team} <button onClick={() => setEditTeams(editTeams.filter(x => x !== team))} className="hover:text-destructive transition-colors"><X className="w-3 h-3" /></button>
                       </span>
                     ))}
                   </div>

@@ -23,6 +23,7 @@ interface CricketState {
   addMatch: (match: Match) => void;
   setActiveMatchId: (id: string | null) => void;
   updateMatch: (match: Match) => void;
+  deleteMatchHistory: (id: string) => void;
   
   // Scoring
   scoreRuns: (runs: number, isBoundary?: boolean) => void;
@@ -90,6 +91,16 @@ export const useCricketStore = create<CricketState>()(
           lastEvent: state.lastEvent
         });
         return { matches: newMatches };
+      }),
+
+      deleteMatchHistory: (id) => set(state => {
+        const newHistory = state.history.filter(h => h.id !== id);
+        broadcastService.broadcast({ history: newHistory, activeMatchId: state.activeMatchId });
+
+        // Background sync to IDB (no-op if helper isn't defined yet)
+        dbHelpers.deleteMatchHistory?.(id);
+
+        return { history: newHistory };
       }),
 
       setPublicView: (view) => set(state => {
@@ -260,6 +271,10 @@ export const useCricketStore = create<CricketState>()(
         if (!match || match.status !== 'live') return state;
 
         const currentInnings = match.innings[match.currentInnings];
+
+        // Don't exceed total overs
+        if (currentInnings.overs >= match.totalOvers) return state;
+
         const updatedInnings = {
           ...currentInnings,
           overs: currentInnings.overs + 1,
