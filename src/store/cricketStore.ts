@@ -31,6 +31,8 @@ interface CricketState {
   undoLastBall: () => void;
   endOver: () => void;
   startNewInnings: () => void;
+  pauseMatch: () => void;
+  resumeMatch: () => void;
   endMatch: (winner: string, resultStr: string) => void;
   setPublicView: (view: 'score' | 'target' | 'result' | 'break') => void;
 }
@@ -107,8 +109,17 @@ export const useCricketStore = create<CricketState>()(
         if (!match || match.status !== 'live') return state;
 
         const currentInnings = match.innings[match.currentInnings];
+        
+        // Validate: don't allow more balls than overs permit
+        const validBalls = currentInnings.balls.filter(b => b.extra !== 'wide' && b.extra !== 'noBall');
+        const maxBalls = match.totalOvers * 6;
+        if (validBalls.length >= maxBalls) return state;
+
         const newBall: BallEvent = { runs, isWicket: false, timestamp: new Date().toISOString() };
         
+        // Initialize timer for first innings if not already started
+        const timerStartedAt = match.timerStartedAt || (match.currentInnings === 0 ? new Date().toISOString() : match.timerStartedAt);
+
         const updatedInnings = {
           ...currentInnings,
           balls: [...currentInnings.balls, newBall],
@@ -117,6 +128,7 @@ export const useCricketStore = create<CricketState>()(
 
         const updatedMatch = {
           ...match,
+          timerStartedAt,
           innings: match.innings.map((inn, i) => i === match.currentInnings ? updatedInnings : inn)
         };
 
@@ -137,7 +149,18 @@ export const useCricketStore = create<CricketState>()(
         if (!match || match.status !== 'live') return state;
 
         const currentInnings = match.innings[match.currentInnings];
+        
+        // For non-wide/noBall extras, validate ball count
+        if (type !== 'wide' && type !== 'noBall') {
+          const validBalls = currentInnings.balls.filter(b => b.extra !== 'wide' && b.extra !== 'noBall');
+          const maxBalls = match.totalOvers * 6;
+          if (validBalls.length >= maxBalls) return state;
+        }
+
         const newBall: BallEvent = { runs, extra: type, isWicket: false, timestamp: new Date().toISOString() };
+
+        // Initialize timer for first innings if not already started
+        const timerStartedAt = match.timerStartedAt || (match.currentInnings === 0 ? new Date().toISOString() : match.timerStartedAt);
 
         const extraBonus = (type === 'wide' || type === 'noBall') ? 1 : 0;
         const addRuns = runs + extraBonus;
@@ -152,6 +175,7 @@ export const useCricketStore = create<CricketState>()(
 
         const updatedMatch = {
           ...match,
+          timerStartedAt,
           innings: match.innings.map((inn, i) => i === match.currentInnings ? updatedInnings : inn)
         };
 
@@ -170,7 +194,16 @@ export const useCricketStore = create<CricketState>()(
         if (!match || match.status !== 'live') return state;
 
         const currentInnings = match.innings[match.currentInnings];
+        
+        // Validate: don't allow more balls than overs permit
+        const validBalls = currentInnings.balls.filter(b => b.extra !== 'wide' && b.extra !== 'noBall');
+        const maxBalls = match.totalOvers * 6;
+        if (validBalls.length >= maxBalls) return state;
+
         const newBall: BallEvent = { runs: 0, isWicket: true, timestamp: new Date().toISOString() };
+
+        // Initialize timer for first innings if not already started
+        const timerStartedAt = match.timerStartedAt || (match.currentInnings === 0 ? new Date().toISOString() : match.timerStartedAt);
         
         const updatedInnings = {
           ...currentInnings,
@@ -180,6 +213,7 @@ export const useCricketStore = create<CricketState>()(
 
         const updatedMatch = {
           ...match,
+          timerStartedAt,
           innings: match.innings.map((inn, i) => i === match.currentInnings ? updatedInnings : inn)
         };
 
@@ -251,7 +285,46 @@ export const useCricketStore = create<CricketState>()(
           currentInnings: 1 as const,
           status: 'live' as const,
           publicView: 'target' as const,
+          timerStartedAt: new Date().toISOString(),
+          timerPausedTime: undefined,
           innings: match.innings.map((inn, i) => i === 0 ? { ...inn, isComplete: true } : inn)
+        };
+
+        const newMatches = state.matches.map(m => m.id === match.id ? updatedMatch : m);
+        broadcastService.broadcast({ matches: newMatches, activeMatchId: state.activeMatchId });
+        return { matches: newMatches };
+      }),
+
+      pauseMatch: () => set(state => {
+        if (!state.activeMatchId) return state;
+        const match = state.matches.find(m => m.id === state.activeMatchId);
+        if (!match || match.status !== 'live') return state;
+
+        const currentTime = Date.now();
+        const startTime = match.timerStartedAt ? new Date(match.timerStartedAt).getTime() : currentTime;
+        const pausedTime = match.timerPausedTime ?? 0;
+        const elapsedMs = currentTime - startTime + pausedTime;
+
+        const updatedMatch = {
+          ...match,
+          status: 'paused' as const,
+          timerPausedTime: elapsedMs
+        };
+
+        const newMatches = state.matches.map(m => m.id === match.id ? updatedMatch : m);
+        broadcastService.broadcast({ matches: newMatches, activeMatchId: state.activeMatchId });
+        return { matches: newMatches };
+      }),
+
+      resumeMatch: () => set(state => {
+        if (!state.activeMatchId) return state;
+        const match = state.matches.find(m => m.id === state.activeMatchId);
+        if (!match || match.status !== 'paused') return state;
+
+        const updatedMatch = {
+          ...match,
+          status: 'live' as const,
+          timerStartedAt: new Date(Date.now() - (match.timerPausedTime ?? 0)).toISOString()
         };
 
         const newMatches = state.matches.map(m => m.id === match.id ? updatedMatch : m);

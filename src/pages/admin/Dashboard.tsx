@@ -28,6 +28,8 @@ export default function Dashboard() {
     updateMatch,
     setPublicView,
     startNewInnings,
+    pauseMatch,
+    resumeMatch,
     endMatch,
     breakMessage,
     setBreakMessage,
@@ -35,6 +37,7 @@ export default function Dashboard() {
 
   const [lastActionLabel, setLastActionLabel] = useState<string | null>(null);
   const [breakInput, setBreakInput] = useState(breakMessage);
+  const [extraModal, setExtraModal] = useState<'wide' | 'noBall' | 'bye' | 'legBye' | null>(null);
 
   const prevBallsRef   = useRef<number>(0);
   const prevWicketsRef = useRef<number>(0);
@@ -53,7 +56,8 @@ export default function Dashboard() {
   const handleExtra = useCallback((type: "wide" | "noBall" | "bye" | "legBye", runs: number) => {
     scoreExtra(type, runs);
     const labels: Record<string, string> = { wide: "Wide", noBall: "No Ball", bye: "Bye", legBye: "Leg Bye" };
-    flashAction(labels[type]);
+    flashAction(`${labels[type]}${runs > 0 ? ` (${runs})` : ""}`);
+    setExtraModal(null);
   }, [scoreExtra, flashAction]);
 
   const handleWicket = useCallback(() => {
@@ -231,7 +235,11 @@ export default function Dashboard() {
   const oversText  = `${innings.overs}.${validBalls.length % 6}`;
 
   const toggleStatus = () => {
-    updateMatch({ ...match, status: match.status === "live" ? "paused" : "live" });
+    if (match.status === "live") {
+      pauseMatch();
+    } else if (match.status === "paused") {
+      resumeMatch();
+    }
   };
 
   const handleEndMatch = () => {
@@ -256,6 +264,40 @@ export default function Dashboard() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+      {/* EXTRA RUNS MODAL */}
+      {extraModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 max-w-sm w-full">
+            <h2 className="text-xl font-bold mb-4">
+              Select Runs for {extraModal === "bye" ? "Bye" : extraModal === "legBye" ? "Leg Bye" : ""}
+            </h2>
+            <div className="grid grid-cols-3 gap-3">
+              {[0, 1, 2, 3, 4, 6].map((runs) => (
+                <Button
+                  key={runs}
+                  onClick={() => handleExtra(extraModal, runs)}
+                  className={`h-16 text-2xl font-bold ${
+                    runs === 6
+                      ? "bg-accent hover:bg-accent/90 text-accent-foreground"
+                      : runs === 4
+                      ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+                      : "bg-secondary hover:bg-secondary/80 text-foreground"
+                  }`}
+                >
+                  {runs}
+                </Button>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              className="w-full mt-4"
+              onClick={() => setExtraModal(null)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
       {/* LEFT: Match Info */}
       <div className="lg:col-span-3 space-y-6">
         <div className="bg-card border border-border rounded-xl p-6">
@@ -359,8 +401,8 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Button disabled={!isLive} onClick={() => handleExtra("wide", 0)} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-wide">WD</Button>
           <Button disabled={!isLive} onClick={() => handleExtra("noBall", 0)} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-noball">NB</Button>
-          <Button disabled={!isLive} onClick={() => { const v = parseInt(window.prompt('Bye runs', '1') || '0', 10); if (Number.isFinite(v) && v > 0) handleExtra('bye', v); }} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-bye">B</Button>
-          <Button disabled={!isLive} onClick={() => { const v = parseInt(window.prompt('Leg bye runs', '1') || '0', 10); if (Number.isFinite(v) && v > 0) handleExtra('legBye', v); }} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-legbye">LB</Button>
+          <Button disabled={!isLive} onClick={() => setExtraModal("bye")} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-bye">BYE</Button>
+          <Button disabled={!isLive} onClick={() => setExtraModal("legBye")} variant="outline" className="h-16 text-lg font-bold" data-testid="button-extra-legbye">LB</Button>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

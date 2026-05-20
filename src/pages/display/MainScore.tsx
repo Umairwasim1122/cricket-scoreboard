@@ -1,7 +1,68 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useCricketStore } from "@/store/cricketStore";
 import { broadcastService } from "@/services/broadcastService";
 import { motion } from "framer-motion";
+import { Match } from "@/types/cricket";
+
+function TimerDisplay({ match }: { match: Match | undefined }) {
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [timerColor, setTimerColor] = useState("text-foreground");
+
+  useEffect(() => {
+    if (!match?.inningsTimerMinutes || !match?.timerStartedAt) return;
+    if (match.status === "completed") return;
+
+    const interval = setInterval(() => {
+      const totalMs = match.inningsTimerMinutes! * 60 * 1000;
+      const startTime = new Date(match.timerStartedAt!).getTime();
+      let elapsedMs = 0;
+
+      if (match.status === "live") {
+        const pausedTime = match.timerPausedTime ?? 0;
+        elapsedMs = Date.now() - startTime + pausedTime;
+      } else if (match.status === "paused") {
+        elapsedMs = match.timerPausedTime ?? 0;
+      }
+
+      const remaining = totalMs - elapsedMs;
+      const remainingSeconds = Math.floor(remaining / 1000);
+      const minAllowed = -10 * 60; // -10 minutes in seconds
+      const cappedSeconds = Math.max(minAllowed, remainingSeconds);
+      
+      setTimeRemaining(cappedSeconds);
+
+      // Determine color
+      const percent = (elapsedMs / totalMs) * 100;
+      if (cappedSeconds <= 0) {
+        setTimerColor("text-red-500");
+      } else if (cappedSeconds <= 20) {
+        setTimerColor("text-red-500");
+      } else if (percent >= 80) {
+        setTimerColor("text-yellow-500");
+      } else {
+        setTimerColor("text-foreground");
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [match]);
+
+  if (timeRemaining === null) return null;
+
+  const isNegative = timeRemaining < 0;
+  const absTime = Math.abs(timeRemaining);
+  const minutes = Math.floor(absTime / 60);
+  const seconds = absTime % 60;
+
+  return (
+    <div className={`absolute bottom-8 right-8 text-center ${timerColor} transition-colors duration-300`}>
+      <div className="text-sm text-muted-foreground uppercase tracking-widest font-bold mb-2">Innings Timer</div>
+      <div className="text-5xl font-bold tabular-nums">
+        {isNegative ? "-" : ""}{minutes.toString().padStart(2, "0")}:{seconds.toString().padStart(2, "0")}
+      </div>
+    </div>
+  );
+}
 
 export default function MainScore() {
   const { matches, activeMatchId, syncState } = useCricketStore();
@@ -64,6 +125,7 @@ export default function MainScore() {
           {oversText} <span className="text-2xl sm:text-3xl md:text-4xl text-muted-foreground">/ {match.totalOvers} OVERS</span>
         </div>
       </motion.div>
+      <TimerDisplay match={match} />
     </div>
   );
 }

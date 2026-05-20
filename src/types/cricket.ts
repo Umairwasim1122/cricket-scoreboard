@@ -31,6 +31,7 @@ export interface Match {
   teamA: string;
   teamB: string;
   totalOvers: number;
+  inningsTimerMinutes?: number;
   innings: Innings[];
   currentInnings: 0 | 1;
   status: 'scheduled' | 'live' | 'paused' | 'innings_break' | 'completed';
@@ -39,6 +40,8 @@ export interface Match {
   publicView: 'score' | 'target' | 'result' | 'break';
   createdAt: string;
   completedAt?: string;
+  timerStartedAt?: string;
+  timerPausedTime?: number;
 }
 
 export interface MatchHistory {

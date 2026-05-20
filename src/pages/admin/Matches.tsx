@@ -14,6 +14,7 @@ export default function Matches() {
   const [teamA, setTeamA] = useState("");
   const [teamB, setTeamB] = useState("");
   const [overs, setOvers] = useState("20");
+  const [inningsTimer, setInningsTimer] = useState("15");
   const [editId, setEditId] = useState<string | null>(null);
   const [editOvers, setEditOvers] = useState("20");
   const [editTeamA, setEditTeamA] = useState("");
@@ -23,13 +24,14 @@ export default function Matches() {
   const selectedTournament = tournaments.find(t => t.id === tId);
 
   const handleCreate = () => {
-    if (tId && teamA && teamB && overs && teamA !== teamB) {
+    if (tId && teamA && teamB && overs && teamA !== teamB && inningsTimer) {
       const match = {
         id: Math.random().toString(36).substring(7),
         tournamentId: tId,
         teamA,
         teamB,
         totalOvers: parseInt(overs),
+        inningsTimerMinutes: parseInt(inningsTimer),
         innings: [
           { battingTeam: teamA, bowlingTeam: teamB, balls: [], isComplete: false, totalRuns: 0, wickets: 0, overs: 0, byes: 0, legByes: 0 },
           { battingTeam: teamB, bowlingTeam: teamA, balls: [], isComplete: false, totalRuns: 0, wickets: 0, overs: 0, byes: 0, legByes: 0 }
@@ -115,15 +117,37 @@ export default function Matches() {
             <Input 
               type="number" 
               value={overs} 
-              onChange={(e) => setOvers(e.target.value)} 
+              onChange={(e) => {
+                const val = e.target.value;
+                if (/^\d*$/.test(val)) {
+                  setOvers(val);
+                }
+              }} 
+              placeholder="20"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm text-muted-foreground font-medium">Innings Timer (Minutes)</label>
+            <Input 
+              type="number" 
+              value={inningsTimer} 
+              onChange={(e) => {
+                const val = e.target.value;
+                if (/^\d*$/.test(val)) {
+                  setInningsTimer(val);
+                }
+              }} 
               className="bg-background"
+              placeholder="15"
+              min="1"
             />
           </div>
 
           <Button 
             className="w-full mt-4" 
             onClick={handleCreate}
-            disabled={!tId || !teamA || !teamB || !overs || teamA === teamB}
+            disabled={!tId || !teamA || !teamB || !overs || !inningsTimer || teamA === teamB}
           >
             Start Match
           </Button>
