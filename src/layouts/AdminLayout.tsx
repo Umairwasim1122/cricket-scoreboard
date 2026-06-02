@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { ReactNode } from "react";
-import { Trophy, Home, History, MonitorPlay, Menu, X } from "lucide-react";
+import { Trophy, Home, History, MonitorPlay, Menu, X, Settings } from "lucide-react";
 import { useState } from "react";
 
 export function AdminLayout({ children }: { children: ReactNode }) {
@@ -12,6 +12,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { href: "/admin/tournaments", label: "Tournaments", icon: Trophy },
     { href: "/admin/matches", label: "Matches", icon: MonitorPlay },
     { href: "/admin/history", label: "History", icon: History },
+    { href: "/admin/settings", label: "Settings", icon: Settings },
   ];
 
   return (

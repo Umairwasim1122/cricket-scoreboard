@@ -64,7 +64,7 @@ export default function ResultView() {
   const team2IsWinner = winnerName === innings2?.battingTeam;
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 bg-[#0a0a1a] relative overflow-hidden">
+    <div className="w-full h-full min-h-screen flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 bg-[#0a0a1a] relative overflow-hidden">
       {/* Ambient glow behind winner side */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[500px] md:w-[700px] h-[300px] sm:h-[500px] md:h-[700px] rounded-full bg-accent/10 blur-[60px] sm:blur-[100px] md:blur-[140px]" />

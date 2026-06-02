@@ -16,11 +16,13 @@ import Dashboard from "@/pages/admin/Dashboard";
 import Tournaments from "@/pages/admin/Tournaments";
 import Matches from "@/pages/admin/Matches";
 import History from "@/pages/admin/History";
+import Settings from "@/pages/admin/Settings";
 
 import MainScore from "@/pages/display/MainScore";
 import TargetView from "@/pages/display/TargetView";
 import ResultView from "@/pages/display/ResultView";
 import InningsBreak from "@/pages/display/InningsBreak";
+import { applyTheme, getThemeMode } from "@/lib/settings";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +73,9 @@ function Router() {
       <Route path="/admin/history">
         <AdminLayout><History /></AdminLayout>
       </Route>
+      <Route path="/admin/settings">
+        <AdminLayout><Settings /></AdminLayout>
+      </Route>
 
       {/* Display Routes */}
       <Route path="/display">
@@ -94,10 +99,14 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    applyTheme(getThemeMode());
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}> 
           <Router />
         </WouterRouter>
         <Toaster />

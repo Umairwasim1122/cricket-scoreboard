@@ -23,13 +23,16 @@ interface CricketState {
   addMatch: (match: Match) => void;
   setActiveMatchId: (id: string | null) => void;
   updateMatch: (match: Match) => void;
+  deleteMatch: (id: string) => void;
   deleteMatchHistory: (id: string) => void;
+  redoStack: BallEvent[];
   
   // Scoring
   scoreRuns: (runs: number, isBoundary?: boolean) => void;
   scoreExtra: (type: 'wide' | 'noBall' | 'bye' | 'legBye', runs: number) => void;
-  takeWicket: () => void;
+  takeWicket: (type?: 'bowled' | 'caught' | 'runOut' | 'retiredHurt', runs?: number) => void;
   undoLastBall: () => void;
+  redoLastBall: () => void;
   endOver: () => void;
   startNewInnings: () => void;
   pauseMatch: () => void;
@@ -53,6 +56,7 @@ export const useCricketStore = create<CricketState>()(
       activeMatchId: null,
       lastEvent: null,
       breakMessage: '',
+      redoStack: [],
 
       setLastEvent: (event) => set({ lastEvent: event }),
       syncState: (state) => set(state as any),
@@ -79,6 +83,7 @@ export const useCricketStore = create<CricketState>()(
       addMatch: (match) => set(state => {
         return { matches: [...state.matches, match] };
       }),
+      redoStack: [],
       
       setActiveMatchId: (id) => set({ activeMatchId: id }),
       
@@ -91,6 +96,18 @@ export const useCricketStore = create<CricketState>()(
           lastEvent: state.lastEvent
         });
         return { matches: newMatches };
+      }),
+
+      deleteMatch: (id) => set(state => {
+        const newMatches = state.matches.filter(m => m.id !== id);
+        const activeMatchId = state.activeMatchId === id ? null : state.activeMatchId;
+        broadcastService.broadcast({
+          matches: newMatches,
+          activeMatchId,
+          breakMessage: state.breakMessage,
+          lastEvent: state.lastEvent
+        });
+        return { matches: newMatches, activeMatchId };
       }),
 
       deleteMatchHistory: (id) => set(state => {
@@ -151,7 +168,7 @@ export const useCricketStore = create<CricketState>()(
         }
 
         broadcastService.broadcast({ matches: newMatches, activeMatchId: state.activeMatchId, lastEvent: event });
-        return { matches: newMatches, lastEvent: event };
+        return { matches: newMatches, lastEvent: event, redoStack: [] };
       }),
 
       scoreExtra: (type, runs) => set(state => {
@@ -196,10 +213,10 @@ export const useCricketStore = create<CricketState>()(
           setTimeout(() => get().setLastEvent(null), 3000);
         }
         broadcastService.broadcast({ matches: newMatches, activeMatchId: state.activeMatchId, lastEvent: event });
-        return { matches: newMatches, lastEvent: event };
+        return { matches: newMatches, lastEvent: event, redoStack: [] };
       }),
 
-      takeWicket: () => set(state => {
+      takeWicket: (type = 'bowled', runs = 0) => set(state => {
          if (!state.activeMatchId) return state;
         const match = state.matches.find(m => m.id === state.activeMatchId);
         if (!match || match.status !== 'live') return state;
@@ -211,7 +228,13 @@ export const useCricketStore = create<CricketState>()(
         const maxBalls = match.totalOvers * 6;
         if (validBalls.length >= maxBalls) return state;
 
-        const newBall: BallEvent = { runs: 0, isWicket: true, timestamp: new Date().toISOString() };
+        const wicketRuns = type === 'runOut' ? runs : 0;
+        const newBall: BallEvent = {
+          runs: wicketRuns,
+          isWicket: true,
+          wicketType: type,
+          timestamp: new Date().toISOString()
+        };
 
         // Initialize timer for first innings if not already started
         const timerStartedAt = match.timerStartedAt || (match.currentInnings === 0 ? new Date().toISOString() : match.timerStartedAt);
@@ -220,6 +243,7 @@ export const useCricketStore = create<CricketState>()(
           ...currentInnings,
           balls: [...currentInnings.balls, newBall],
           wickets: currentInnings.wickets + 1,
+          totalRuns: currentInnings.totalRuns + wicketRuns,
         };
 
         const updatedMatch = {
@@ -232,37 +256,82 @@ export const useCricketStore = create<CricketState>()(
         
         setTimeout(() => get().setLastEvent(null), 3000);
         broadcastService.broadcast({ matches: newMatches, activeMatchId: state.activeMatchId, lastEvent: 'wicket' });
-        return { matches: newMatches, lastEvent: 'wicket' };
+        return { matches: newMatches, lastEvent: 'wicket', redoStack: [] };
       }),
 
       undoLastBall: () => set(state => {
          if (!state.activeMatchId) return state;
         const match = state.matches.find(m => m.id === state.activeMatchId);
-        if (!match || match.status !== 'live') return state;
+        if (!match || (match.status !== 'live' && match.status !== 'completed')) return state;
 
         const currentInnings = match.innings[match.currentInnings];
         if (currentInnings.balls.length === 0) return state;
 
         const lastBall = currentInnings.balls[currentInnings.balls.length - 1];
         const runsToDeduct = lastBall.runs + (lastBall.extra === 'wide' || lastBall.extra === 'noBall' ? 1 : 0);
+        const remainingBalls = currentInnings.balls.slice(0, -1);
+        const validBalls = remainingBalls.filter(b => b.extra !== 'wide' && b.extra !== 'noBall');
+        const updatedOvers = Math.floor(validBalls.length / 6);
 
         const updatedInnings = {
           ...currentInnings,
-          balls: currentInnings.balls.slice(0, -1),
+          balls: remainingBalls,
           totalRuns: currentInnings.totalRuns - runsToDeduct,
           wickets: currentInnings.wickets - (lastBall.isWicket ? 1 : 0),
+          overs: updatedOvers,
           byes: (currentInnings.byes || 0) - (lastBall.extra === 'bye' ? lastBall.runs : 0),
           legByes: (currentInnings.legByes || 0) - (lastBall.extra === 'legBye' ? lastBall.runs : 0)
         };
 
         const updatedMatch = {
           ...match,
+          status: match.status === 'completed' ? 'live' : match.status,
+          winner: match.status === 'completed' ? undefined : match.winner,
+          result: match.status === 'completed' ? undefined : match.result,
+          completedAt: match.status === 'completed' ? undefined : match.completedAt,
+          publicView: match.status === 'completed' ? 'score' : match.publicView,
           innings: match.innings.map((inn, i) => i === match.currentInnings ? updatedInnings : inn)
         };
 
         const newMatches = state.matches.map(m => m.id === match.id ? updatedMatch : m);
         broadcastService.broadcast({ matches: newMatches, activeMatchId: state.activeMatchId });
-        return { matches: newMatches };
+        return { matches: newMatches, redoStack: [...state.redoStack, lastBall] };
+      }),
+
+      redoLastBall: () => set(state => {
+         if (!state.activeMatchId) return state;
+        const match = state.matches.find(m => m.id === state.activeMatchId);
+        if (!match) return state;
+        if (state.redoStack.length === 0) return state;
+
+        const currentInnings = match.innings[match.currentInnings];
+        const redoBall = state.redoStack[state.redoStack.length - 1];
+        const remainingRedo = state.redoStack.slice(0, -1);
+
+        const runsToAdd = redoBall.runs + (redoBall.extra === 'wide' || redoBall.extra === 'noBall' ? 1 : 0);
+
+        const updatedInnings = {
+          ...currentInnings,
+          balls: [...currentInnings.balls, redoBall],
+          totalRuns: currentInnings.totalRuns + runsToAdd,
+          wickets: currentInnings.wickets + (redoBall.isWicket ? 1 : 0),
+          byes: (currentInnings.byes || 0) + (redoBall.extra === 'bye' ? redoBall.runs : 0),
+          legByes: (currentInnings.legByes || 0) + (redoBall.extra === 'legBye' ? redoBall.runs : 0)
+        };
+
+        const updatedMatch = {
+          ...match,
+          status: match.status === 'completed' ? 'live' : match.status,
+          winner: match.status === 'completed' ? undefined : match.winner,
+          result: match.status === 'completed' ? undefined : match.result,
+          completedAt: match.status === 'completed' ? undefined : match.completedAt,
+          publicView: match.status === 'completed' ? 'score' : match.publicView,
+          innings: match.innings.map((inn, i) => i === match.currentInnings ? updatedInnings : inn)
+        };
+
+        const newMatches = state.matches.map(m => m.id === match.id ? updatedMatch : m);
+        broadcastService.broadcast({ matches: newMatches, activeMatchId: state.activeMatchId });
+        return { matches: newMatches, redoStack: remainingRedo };
       }),
 
       endOver: () => set(state => {

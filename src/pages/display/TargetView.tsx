@@ -105,7 +105,7 @@ export default function TargetView() {
   const rrr = ballsRemaining > 0 ? ((runsNeeded / ballsRemaining) * 6).toFixed(2) : "—";
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 bg-[#0a0a1a]">
+    <div className="w-full h-full min-h-screen flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 bg-[#0a0a1a]">
       <div className="absolute top-2 sm:top-6 md:top-8 left-2 sm:left-4 md:left-6 text-primary font-bold text-xs sm:text-2xl md:text-4xl tracking-widest uppercase opacity-80 max-w-[80vw] sm:max-w-[50vw] truncate">
         {match.teamA} VS {match.teamB}
       </div>

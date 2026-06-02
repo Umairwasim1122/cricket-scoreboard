@@ -29,7 +29,7 @@ export default function InningsBreak() {
   const innings1 = match.innings[0];
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 bg-[#0a0a1a] relative">
+    <div className="w-full h-full min-h-screen flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 bg-[#0a0a1a] relative">
       {!breakMessage && (
         <motion.div
           initial={{ opacity: 0 }}

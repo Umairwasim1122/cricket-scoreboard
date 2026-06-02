@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { RotateCcw, MonitorPlay, Flag, Play, ExternalLink, Tv2, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getMobileViewEnabled, getDisplayPopupFeatures } from "@/lib/settings";
+
+type WicketReason = 'bowled' | 'caught' | 'runOut' | 'retiredHurt';
 
 const DISPLAY_ROUTES: Record<string, string> = {
   score: "display",
@@ -11,12 +14,15 @@ const DISPLAY_ROUTES: Record<string, string> = {
   break: "display/break",
 };
 
-function openDisplay(view: string) {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  window.open(`${base}/${DISPLAY_ROUTES[view]}`, "_blank");
-}
-
 export default function Dashboard() {
+  const openDisplay = useCallback((view: string) => {
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    const url = `${base}/${DISPLAY_ROUTES[view]}`;
+    const name = `cricket-display-${view}`;
+    const features = getDisplayPopupFeatures(getMobileViewEnabled());
+    const popup = window.open(url, name, features);
+    if (popup) popup.focus();
+  }, []);
   const {
     activeMatchId,
     matches,
@@ -24,6 +30,7 @@ export default function Dashboard() {
     scoreExtra,
     takeWicket,
     undoLastBall,
+    redoLastBall,
     endOver,
     updateMatch,
     setPublicView,
@@ -33,11 +40,14 @@ export default function Dashboard() {
     endMatch,
     breakMessage,
     setBreakMessage,
+    redoStack,
   } = useCricketStore();
 
   const [lastActionLabel, setLastActionLabel] = useState<string | null>(null);
   const [breakInput, setBreakInput] = useState(breakMessage);
   const [extraModal, setExtraModal] = useState<'wide' | 'noBall' | 'bye' | 'legBye' | null>(null);
+  const [wicketModalOpen, setWicketModalOpen] = useState(false);
+  const [selectedWicketType, setSelectedWicketType] = useState<WicketReason | null>(null);
 
   const prevBallsRef   = useRef<number>(0);
   const prevWicketsRef = useRef<number>(0);
@@ -45,6 +55,7 @@ export default function Dashboard() {
   const matchEndedRef  = useRef<boolean>(false);
 
   const match = matches.find((m) => m.id === activeMatchId);
+  const canUndoRedo = match?.status === "live" || match?.status === "completed";
 
   const flashAction = useCallback((label: string) => setLastActionLabel(label), []);
 
@@ -60,10 +71,22 @@ export default function Dashboard() {
     setExtraModal(null);
   }, [scoreExtra, flashAction]);
 
-  const handleWicket = useCallback(() => {
-    takeWicket();
-    flashAction("WICKET!");
+  const handleWicket = useCallback((type: WicketReason, runs: number = 0) => {
+    takeWicket(type, runs);
+    const label = type === 'runOut'
+      ? `Run Out${runs > 0 ? ` (${runs})` : ''}`
+      : type === 'retiredHurt'
+      ? 'Retired Hurt'
+      : type.charAt(0).toUpperCase() + type.slice(1);
+    flashAction(label);
+    setSelectedWicketType(null);
+    setWicketModalOpen(false);
   }, [takeWicket, flashAction]);
+
+  const openWicketModal = useCallback(() => {
+    setSelectedWicketType(null);
+    setWicketModalOpen(true);
+  }, []);
 
   // Reset guards whenever the active match changes
   useEffect(() => {
@@ -83,6 +106,7 @@ export default function Dashboard() {
     const totalValid = validBalls.length;
     const thisOver   = totalValid % 6;
 
+    const ballsAdded     = totalValid          > prevBallsRef.current;
     const ballsChanged   = totalValid          !== prevBallsRef.current;
     const wicketsChanged = innings.wickets     !== prevWicketsRef.current;
     const runsChanged    = innings.totalRuns   !== prevRunsRef.current;
@@ -96,8 +120,8 @@ export default function Dashboard() {
 
     // ── 1st innings ──────────────────────────────────────────────────────────
     if (match.currentInnings === 0) {
-      // Auto end-over
-      if (totalValid > 0 && ballsChanged && thisOver === 0) {
+      // Auto end-over only on added balls, not on undo
+      if (totalValid > 0 && ballsAdded && thisOver === 0) {
         prevBallsRef.current = totalValid;
         endOver();
         flashAction("Over Complete — Auto Ended");
@@ -179,7 +203,7 @@ export default function Dashboard() {
     }
 
     // 5. Auto end-over (6 valid balls, match still ongoing)
-    if (totalValid > 0 && ballsChanged && thisOver === 0) {
+    if (totalValid > 0 && ballsAdded && thisOver === 0) {
       endOver();
       flashAction("Over Complete — Auto Ended");
     }
@@ -217,13 +241,28 @@ export default function Dashboard() {
 
   if (match.status === "completed") {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center bg-card p-12 rounded-xl border border-border">
-          <h2 className="text-3xl font-bold text-success mb-2">Match Completed</h2>
-          <p className="text-muted-foreground mb-6">{match.result}</p>
-          <Button onClick={() => { setPublicView("result"); openDisplay("result"); }}>
-            <ExternalLink className="w-4 h-4 mr-2" /> Show Result Screen
-          </Button>
+      <div className="flex items-center justify-center h-full p-4">
+        <div className="max-w-xl w-full space-y-4">
+          <div className="text-center bg-card p-8 rounded-xl border border-border">
+            <h2 className="text-3xl font-bold text-success mb-2">Match Completed</h2>
+            <p className="text-muted-foreground mb-4">{match.result}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Button onClick={() => { setPublicView("result"); openDisplay("result"); }}>
+                <ExternalLink className="w-4 h-4 mr-2" /> Show Result Screen
+              </Button>
+              <Button disabled={!canUndoRedo} variant="outline" onClick={undoLastBall}>
+                <RotateCcw className="w-4 h-4 mr-2" /> Undo Last Ball
+              </Button>
+            </div>
+            <Button disabled={!redoStack.length} variant="outline" className="mt-3 w-full" onClick={redoLastBall}>
+              Redo Last Ball
+            </Button>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              The session has ended, but you can still undo or redo the last ball if the final delivery needs correction.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -233,11 +272,12 @@ export default function Dashboard() {
   const isLive    = match.status === "live";
   const validBalls = innings.balls.filter((b) => b.extra !== "wide" && b.extra !== "noBall");
   const oversText  = `${innings.overs}.${validBalls.length % 6}`;
+  const secondInningsStarted = match.innings[1].balls.length > 0 || match.innings[1].isComplete;
 
   // Configure extra modal options based on type
   const extraModalConfig: Record<string, { title: string; runs: number[] }> = {
-    wide:   { title: "Wide",     runs: [1, 2, 3, 4] },
-    noBall: { title: "No Ball",  runs: [1, 2, 3, 4, 6] },
+    wide:   { title: "Wide",     runs: [0, 1, 2, 3, 4] },
+    noBall: { title: "No Ball",  runs: [0, 1, 2, 3, 4, 6] },
     bye:    { title: "Bye",      runs: [0, 1, 2, 3, 4] },
     legBye: { title: "Leg Bye",  runs: [0, 1, 2, 3, 4] },
   };
@@ -308,6 +348,77 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {wicketModalOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-lg md:rounded-xl p-4 md:p-6 max-w-sm w-full">
+            {!selectedWicketType ? (
+              <>
+                <h2 className="text-lg md:text-xl font-bold mb-3 md:mb-4">Select Wicket Type</h2>
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
+                  {['bowled', 'caught', 'runOut', 'retiredHurt'].map((type) => (
+                    <Button
+                      key={type}
+                      onClick={() => setSelectedWicketType(type as WicketReason)}
+                      className="h-12 md:h-16 text-sm md:text-base font-bold bg-secondary hover:bg-secondary/80 text-foreground"
+                    >
+                      {type === 'runOut' ? 'Run Out' : type === 'retiredHurt' ? 'Retire Hurt' : type.charAt(0).toUpperCase() + type.slice(1)}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full mt-3 md:mt-4"
+                  onClick={() => setWicketModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+              </>
+            ) : selectedWicketType === 'runOut' ? (
+              <>
+                <h2 className="text-lg md:text-xl font-bold mb-3 md:mb-4">Run Out Score</h2>
+                <div className="grid grid-cols-5 gap-2 md:gap-3">
+                  {[0, 1, 2, 3, 4].map((runs) => (
+                    <Button
+                      key={runs}
+                      onClick={() => handleWicket('runOut', runs)}
+                      className={`h-12 md:h-16 text-xl md:text-2xl font-bold ${runs === 4 ? 'bg-primary hover:bg-primary/90 text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-foreground'}`}
+                    >
+                      {runs}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full mt-3 md:mt-4"
+                  onClick={() => setSelectedWicketType(null)}
+                >
+                  Back
+                </Button>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg md:text-xl font-bold mb-3 md:mb-4">Confirm {selectedWicketType === 'retiredHurt' ? 'Retired Hurt' : selectedWicketType.charAt(0).toUpperCase() + selectedWicketType.slice(1)}</h2>
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
+                  <Button
+                    onClick={() => handleWicket(selectedWicketType)}
+                    className="h-12 md:h-16 text-base font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                  >
+                    Confirm
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedWicketType(null)}
+                    className="h-12 md:h-16 text-base font-bold"
+                  >
+                    Back
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       
       {/* LEFT: Match Info */}
       <div className="col-span-1 md:col-span-2 lg:col-span-3 space-y-3 md:space-y-4 lg:space-y-6">
@@ -357,6 +468,18 @@ export default function Dashboard() {
           {match.currentInnings === 0 && (
             <Button variant="default" className="w-full bg-primary hover:bg-primary/90 text-white text-sm md:text-base" onClick={startNewInnings}>
               <Play className="w-3 h-3 md:w-4 md:h-4 mr-2" /> Start 2nd Innings
+            </Button>
+          )}
+          {match.currentInnings === 1 && secondInningsStarted && (
+            <Button variant="outline" className="w-full bg-card hover:bg-secondary border-primary/50 text-primary text-sm md:text-base"
+              onClick={() => updateMatch({ ...match, currentInnings: 0 })}>
+              Edit 1st Innings
+            </Button>
+          )}
+          {match.currentInnings === 0 && secondInningsStarted && (
+            <Button variant="outline" className="w-full bg-card hover:bg-secondary border-primary/50 text-primary text-sm md:text-base"
+              onClick={() => updateMatch({ ...match, currentInnings: 1 })}>
+              Return to 2nd Innings
             </Button>
           )}
           <Button variant="destructive" className="w-full text-sm md:text-base" onClick={handleEndMatch}>
@@ -417,14 +540,20 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-1 md:gap-2 lg:gap-4">
-          <Button disabled={!isLive} onClick={handleWicket}
+          <Button disabled={!isLive} onClick={openWicketModal}
             className="h-16 md:h-20 lg:h-24 text-2xl md:text-3xl lg:text-4xl font-display bg-destructive hover:bg-destructive/90 text-destructive-foreground text-sm md:text-base"
             data-testid="button-wicket">WICKET</Button>
-          <div className="grid grid-rows-2 gap-1 md:gap-2 lg:gap-4">
-            <Button disabled={!isLive} onClick={undoLastBall} variant="outline"
-              className="h-full flex items-center justify-center gap-1 md:gap-2 text-xs md:text-sm" data-testid="button-undo">
-              <RotateCcw className="w-4 h-4 md:w-5 md:h-5" /> Undo
-            </Button>
+          <div className="grid gap-1 md:gap-2 lg:gap-4">
+            <div className="grid grid-cols-2 gap-1 md:gap-2">
+              <Button disabled={!isLive} onClick={undoLastBall} variant="outline"
+                className="h-full flex items-center justify-center gap-1 md:gap-2 text-xs md:text-sm" data-testid="button-undo">
+                <RotateCcw className="w-4 h-4 md:w-5 md:h-5" /> Undo
+              </Button>
+              <Button disabled={!canUndoRedo || redoStack.length === 0} onClick={redoLastBall} variant="outline"
+                className="h-full flex items-center justify-center gap-1 md:gap-2 text-xs md:text-sm" data-testid="button-redo">
+                <span className="w-4 h-4 md:w-5 md:h-5 grid place-items-center">↻</span> Redo
+              </Button>
+            </div>
             <Button disabled={!isLive} onClick={endOver}
               className="h-full text-sm md:text-base font-bold bg-success hover:bg-success/90 text-success-foreground">End Over</Button>
           </div>
@@ -497,7 +626,13 @@ export default function Dashboard() {
                   b.runs === 4 ? "bg-primary text-primary-foreground" :
                   b.extra ? "bg-warning text-warning-foreground" :
                   "bg-secondary text-secondary-foreground"}`}>
-                {b.isWicket ? "W" : (b.extra ? `${b.runs}${b.extra[0].toUpperCase()}` : b.runs)}
+                {b.isWicket
+                  ? b.wicketType === 'runOut'
+                    ? `RO${b.runs}`
+                    : b.wicketType === 'retiredHurt'
+                    ? 'RH'
+                    : b.wicketType === 'caught' ? 'C' : b.wicketType === 'bowled' ? 'B' : 'W'
+                  : (b.extra ? `${b.runs}${b.extra[0].toUpperCase()}` : b.runs)}
               </div>
             ))}
             {innings.balls.length === 0 && <span className="text-muted-foreground text-xs md:text-sm">No balls bowled</span>}

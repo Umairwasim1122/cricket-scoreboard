@@ -100,10 +100,10 @@ export default function MainScore() {
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center p-3 sm:p-4 md:p-8 bg-[#0a0a1a]">
-      <div className="absolute top-2 sm:top-6 md:top-8 left-2 sm:left-4 md:left-6 text-primary font-bold text-xs sm:text-2xl md:text-4xl tracking-widest uppercase opacity-80 max-w-[40vw] truncate">
+      <div className="absolute top-2 sm:top-6 md:top-8 left-2 sm:left-4 md:left-6 text-primary font-bold text-xs sm:text-2xl md:text-4xl tracking-widest uppercase opacity-80 max-w-[80vw] sm:max-w-[60vw] truncate">
         {match.tournamentId ? useCricketStore.getState().tournaments.find(t => t.id === match.tournamentId)?.name ?? "CRICKET MATCH" : "CRICKET MATCH"}
       </div>
-      <div className="absolute top-2 sm:top-6 md:top-8 right-2 sm:right-4 md:right-6 text-muted-foreground font-bold text-[0.6rem] sm:text-xl md:text-3xl max-w-[40vw] text-right truncate">
+      <div className="absolute top-2 sm:top-6 md:top-8 right-2 sm:right-4 md:right-6 text-muted-foreground font-bold text-[0.6rem] sm:text-xl md:text-3xl max-w-[80vw] sm:max-w-[60vw] text-right truncate">
         {match.teamA} VS {match.teamB}
       </div>
 

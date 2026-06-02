@@ -10,6 +10,7 @@ export interface BallEvent {
   runs: number;
   extra?: 'wide' | 'noBall' | 'bye' | 'legBye';
   isWicket: boolean;
+  wicketType?: 'bowled' | 'caught' | 'runOut' | 'retiredHurt';
   timestamp: string;
 }
 

@@ -1,5 +1,12 @@
 import { Link } from "wouter";
 
+const getDisplayPopupFeatures = () => {
+  const mobileView = localStorage.getItem('cricket-scoreboard-mobile-view') === 'true';
+  return mobileView
+    ? 'popup=yes,toolbar=0,location=0,menubar=0,status=0,resizable=1,scrollbars=1,width=420,height=780'
+    : 'popup=yes,toolbar=0,location=0,menubar=0,status=0,resizable=1,scrollbars=1,width=1200,height=800';
+};
+
 export default function Landing() {
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background text-foreground p-4 sm:p-6">
@@ -11,12 +18,16 @@ export default function Landing() {
             <p className="text-sm sm:text-base text-muted-foreground">Control the scoreboard, manage matches</p>
           </div>
         </Link>
-        <div 
-          onClick={() => window.open(import.meta.env.BASE_URL + 'display', '_blank')}
+        <div
+          onClick={() => {
+            const url = import.meta.env.BASE_URL.replace(/\/$/, "") + '/display';
+            const popup = window.open(url, 'cricket-display', getDisplayPopupFeatures());
+            if (popup) popup.focus();
+          }}
           className="flex flex-col items-center justify-center p-6 sm:p-8 rounded-xl bg-card border border-border hover:border-accent transition-colors cursor-pointer min-h-[10rem] sm:min-h-[12rem] text-center group flex-1"
         >
           <h2 className="text-xl sm:text-2xl font-bold mb-2 group-hover:text-accent transition-colors">Open Display</h2>
-          <p className="text-sm sm:text-base text-muted-foreground">Launch stadium screen in new tab</p>
+          <p className="text-sm sm:text-base text-muted-foreground">Launch stadium screen in new window</p>
         </div>
       </div>
     </div>

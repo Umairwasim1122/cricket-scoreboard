@@ -3,11 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
-import { MonitorPlay } from "lucide-react";
+import { MonitorPlay, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function Matches() {
-  const { tournaments, matches, addMatch, setActiveMatchId, activeMatchId, updateMatch } = useCricketStore();
+  const { tournaments, matches, addMatch, setActiveMatchId, activeMatchId, updateMatch, deleteMatch } = useCricketStore();
   const [, setLocation] = useLocation();
 
   const [tId, setTId] = useState("");
@@ -234,6 +234,9 @@ export default function Matches() {
                     }}>Edit</Button>
                     <Button variant={activeMatchId === m.id ? "secondary" : "default"} onClick={() => handleResume(m.id)}>
                       {activeMatchId === m.id ? 'Scoring...' : 'Resume'}
+                    </Button>
+                    <Button variant="destructive" onClick={() => deleteMatch(m.id)}>
+                      <Trash2 className="w-4 h-4" /> Delete
                     </Button>
                   </div>
                 </div>
